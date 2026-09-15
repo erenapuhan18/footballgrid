@@ -1,11 +1,13 @@
-/* Maç ekranı: skor şeridi, sıra ve süre, ızgara, cevap paneli, akış ve sonuç. */
+/* Maç ekranı: skor şeridi, sıra/süre, ızgara, cevap paneli (ipucu), akış, sonuç ve oyuncu kartı.
+   İki tarz: sırayla (turn) ve aynı anda (race — sıra yok, ilk doğru bilen kapar, yanlışa 3 sn ceza). */
 
-import { h, put, fit, toast, modal, catTile, catChip, gridGlyph, COLOR_HEX } from './ui.js';
+import { h, put, fit, toast, modal, catTile, catChip, gridGlyph, playerCard, COLOR_HEX } from './ui.js';
 
 const REASON = {
   line: 'Yan yana üç hücre tamamlandı.',
   full: 'Bütün hücreler doldu.',
   turns: 'Hamle hakları bitti.',
+  time: 'Süre doldu.',
   forfeit: 'Rakip maçtan ayrıldı.',
 };
 const MODE_NAME = { klasik: 'Klasik', hizli: 'Hızlı', uzman: 'Uzman' };
@@ -17,16 +19,23 @@ function debounce(fn, ms) {
     t = setTimeout(() => fn(...a), ms);
   };
 }
+const mmss = (ms) => {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
 
 export function GameScreen(ctx) {
   const { net, S } = ctx;
   let room = S.room;
   let g = room.game;
   const size = g.size;
+  const race = g.style === 'race';
   const me = () => S.pid;
 
   let localSel = null; // benim seçtiğim hücre (sunucu onayından önce de geçerli)
   let lastTurnNo = null;
+  let hint = null; // { cell, text }
+  let cdTimer = null;
   let raf = 0;
   const anim = new Map();
 
@@ -34,13 +43,19 @@ export function GameScreen(ctx) {
   // Açık başlık metni: "Manchester United × Claudio Ranieri ile çalıştı"
   const label = (cat) => (cat.head ? cat.head.filter(Boolean).join(' ') : cat.name);
   const cellName = (i) => `${label(g.rows[Math.floor(i / size)])} × ${label(g.cols[i % size])}`;
+  const takeableFor = (i) => {
+    const c = g.cells[i];
+    return !c.owner || (g.steal && c.owner !== me() && !c.locked);
+  };
+  const penalty = () => (race ? Math.max(0, (player(me())?.cooldownUntil || 0) - net.now()) : 0);
 
   /* ── üst şerit, skor, sıra */
   const turnNo = h('span', { class: 'gturn' });
+  const chip = [MODE_NAME[g.mode] || g.mode, race ? 'Aynı anda' : null, g.lineWin && g.players.length > 2 ? "3'leme" : null].filter(Boolean).join(' · ');
   const header = h('div', { class: 'gbar' },
     h('button', { class: 'icon-btn', title: 'Maçtan çık', 'aria-label': 'Maçtan çık', on: { click: confirmLeave } }, '✕'),
     h('span', { class: 'gcode' }, 'ODA ', h('b', {}, room.code)),
-    h('span', { class: 'gmode' }, (MODE_NAME[g.mode] || g.mode) + (g.lineWin && g.players.length > 2 ? " · 3'leme" : '')),
+    h('span', { class: 'gmode' }, chip),
     turnNo);
   const board = h('div', { class: 'board' });
   const btxt = h('span', { class: 'btxt' });
@@ -66,17 +81,20 @@ export function GameScreen(ctx) {
 
   /* ── cevap paneli */
   const target = h('div', { class: 'target' });
+  const hintBtn = h('button', { class: 'hint-btn', on: { click: askHint } }, '💡 İpucu al', h('small', {}, ' (1 hak)'));
+  const hintBox = h('p', { class: 'hintbox', hidden: true });
   const input = h('input', {
     class: 'input', type: 'text', placeholder: 'Futbolcu adı yaz…', autocomplete: 'off', autocapitalize: 'words',
     spellcheck: 'false', enterkeyhint: 'search', 'aria-label': 'Futbolcu adı', role: 'combobox',
     'aria-autocomplete': 'list', 'aria-controls': 'fg-sugg', 'aria-expanded': 'false',
   });
   const list = h('ul', { class: 'sugg', id: 'fg-sugg', role: 'listbox' });
-  const panel = h('div', { class: 'answer card', hidden: true }, target, input, list,
-    h('div', { class: 'row2' },
-      h('button', { class: 'btn ghost small', on: { click: cancelSel } }, 'VAZGEÇ'),
-      h('button', { class: 'btn small', on: { click: doPass } }, 'PAS GEÇ')));
-  const pickBar = h('div', { class: 'myturn', hidden: true }, h('p', {}, 'Bir hücreye dokun.'), h('button', { class: 'btn small', on: { click: doPass } }, 'PAS GEÇ'));
+  const passBtn = h('button', { class: 'btn small', on: { click: doPass } }, 'PAS GEÇ');
+  const panel = h('div', { class: 'answer card', hidden: true }, target, hintBtn, hintBox, input, list,
+    h('div', { class: race ? 'row1' : 'row2' }, h('button', { class: 'btn ghost small', on: { click: cancelSel } }, 'VAZGEÇ'), race ? null : passBtn));
+  const pickBar = h('div', { class: 'myturn', hidden: true },
+    h('p', {}, race ? 'Bir hücreye dokun — ilk doğru bilen kapar.' : 'Bir hücreye dokun.'),
+    race ? null : h('button', { class: 'btn small', on: { click: doPass } }, 'PAS GEÇ'));
   const feed = h('ul', { class: 'feed', 'aria-live': 'polite' });
   const results = h('div', { class: 'results', hidden: true });
 
@@ -121,8 +139,8 @@ export function GameScreen(ctx) {
     active = arr.length ? 0 : -1;
     input.setAttribute('aria-expanded', arr.length ? 'true' : 'false');
     if (!arr.length) {
-      list.replaceChildren(input.value.trim().length >= 2 ? h('li', { class: 'none' }, 'Bu isimde futbolcu bulunamadı.') : '');
-      if (!list.textContent) list.replaceChildren();
+      if (input.value.trim().length >= 2) list.replaceChildren(h('li', { class: 'none' }, 'Bu isimde futbolcu bulunamadı.'));
+      else list.replaceChildren();
       return paintActive();
     }
     list.replaceChildren(...arr.map((it, i) =>
@@ -141,37 +159,63 @@ export function GameScreen(ctx) {
 
   /* ── eylemler */
 
+  function resetSel() {
+    localSel = null;
+    panel._cell = undefined;
+    input.value = '';
+    renderSugg([]);
+  }
+
+  function canPlayNow() {
+    if (g.over) return false;
+    if (race) return !!player(me()) && !player(me()).left && penalty() <= 0;
+    return g.turn?.pid === me();
+  }
+
   function onCell(i) {
-    if (g.over) return showAlts(i);
-    const t = g.turn;
-    if (!t || t.pid !== me()) return;
+    if (g.over) return showCell(i);
+    if (!canPlayNow()) {
+      if (race && penalty() > 0) toast(`Yanlış cevap cezası: ${Math.ceil(penalty() / 1000)} sn`, 'error', 1400);
+      return;
+    }
     const c = g.cells[i];
     if (c.owner) {
       if (!g.steal) return toast('Bu hücre dolu.', 'error', 1600);
       if (c.owner === me()) return toast('Bu hücre zaten senin.', 'error', 1600);
       if (c.locked) return toast('Bu hücre kilitli, çalınamaz.', 'error', 1600);
     }
+    if (localSel !== i) resetSel();
     localSel = i;
     update(room);
     input.focus(); // dokunuşun içinde: telefonda klavye açılsın
-    net.request('game/select', { cell: i }).catch((e) => {
-      toast(e.message, 'error');
-      if (localSel === i) {
-        localSel = null;
-        update(room);
-      }
-    });
+    if (!race) {
+      net.request('game/select', { cell: i }).catch((e) => {
+        toast(e.message, 'error');
+        if (localSel === i) {
+          localSel = null;
+          update(room);
+        }
+      });
+    }
   }
 
   async function submit(it) {
-    const cell = localSel ?? g.turn?.selected;
+    const cell = localSel ?? (race ? null : g.turn?.selected);
     if (cell === null || cell === undefined || submitting) return;
     submitting = true;
     try {
       const r = await net.request('game/answer', { cell, fid: it.id });
       if (r.correct) toast(`✓ ${it.name}`, 'ok', 1800);
-      else toast(`✗ ${it.name}: ${r.reasons.join(' · ')}`, 'error', 4200);
+      else toast(`✗ ${it.name}: ${r.reasons.join(' · ')}${r.penalty ? ` · ${r.penalty} sn ceza` : ''}`, 'error', 4200);
       input.blur();
+      if (race) {
+        resetSel();
+        if (!r.correct) {
+          clearTimeout(cdTimer);
+          cdTimer = setTimeout(() => update(room), (r.penalty || 3) * 1000 + 80);
+        }
+        update(room);
+      }
     } catch (e) {
       toast(e.message, 'error');
       input.select();
@@ -188,9 +232,23 @@ export function GameScreen(ctx) {
     }
   }
 
+  async function askHint() {
+    const cell = localSel ?? (race ? null : g.turn?.selected);
+    if (cell === null || cell === undefined) return;
+    try {
+      const { hint: x } = await net.request('game/hint', { cell });
+      const nat = x.nats?.length ? x.nats.join(' / ') : 'uyruğu bilinmiyor';
+      hint = { cell, text: `💡 ${x.initials} · ${x.letters} harf · ${x.by ? `${x.by} doğumlu` : 'doğum yılı bilinmiyor'} · ${nat}` };
+      update(room);
+      input.focus();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
   function cancelSel() {
-    localSel = null;
-    net.request('game/select', { cell: null }).catch(() => {});
+    resetSel();
+    if (!race) net.request('game/select', { cell: null }).catch(() => {});
     input.blur();
     update(room);
   }
@@ -205,15 +263,42 @@ export function GameScreen(ctx) {
     });
   }
 
-  function showAlts(i) {
+  async function fetchCard(fid) {
+    const r = await net.request('player/card', { fid });
+    return r.card;
+  }
+
+  async function openCard(fid) {
+    try {
+      const card = await fetchCard(fid);
+      modal(card.name, playerCard(card));
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  /** Maç sonunda hücreye dokununca: oynanan futbolcunun kartı + diğer olası cevaplar. */
+  async function showCell(i) {
     const a = g.result?.answers?.[i];
     if (!a) return;
     const c = g.cells[i];
     const owner = c.owner ? player(c.owner) : null;
-    modal(cellName(i), h('div', { class: 'alts' },
-      c.name ? h('p', {}, 'Oynanan: ', h('b', {}, c.name), owner ? ` (${owner.nick})` : '') : h('p', {}, 'Bu hücre boş kaldı.'),
-      a.alts.length ? h('p', {}, c.name ? 'Diğer olası cevaplar: ' : 'Olası cevaplar: ', h('b', {}, a.alts.join(', '))) : h('p', {}, 'Başka cevap yoktu.'),
-      h('p', { class: 'hint' }, `Veritabanında bu hücreye uyan ${a.total.toLocaleString('tr-TR')} futbolcu var.`)));
+    const alts = h('div', { class: 'alts' },
+      h('p', { class: 'label' }, c.name ? 'DİĞER OLASI CEVAPLAR' : 'OLASI CEVAPLAR'),
+      a.alts.length
+        ? h('div', { class: 'alt-links' }, a.alts.map((x) => h('button', { class: 'alt-link', on: { click: () => openCard(x.id) } }, x.name)))
+        : h('p', {}, 'Başka cevap yoktu.'),
+      h('p', { class: 'hint' }, `Veritabanında bu hücreye uyan ${a.total.toLocaleString('tr-TR')} futbolcu var. İsme dokun, kartını gör.`));
+    const body = h('div', { class: 'cellinfo' }, c.name ? h('p', { class: 'hint' }, 'Oyuncu kartı yükleniyor…') : h('p', {}, 'Bu hücre boş kaldı.'), alts);
+    modal(cellName(i), body);
+    if (c.fid !== null && c.fid !== undefined) {
+      try {
+        const card = await fetchCard(c.fid);
+        put(body, owner ? h('p', { class: 'pc-by', dataset: { color: owner.color } }, h('span', { class: 'dot' }), `${owner.nick} yazdı`) : null, playerCard(card), alts);
+      } catch (e) {
+        put(body, h('p', { class: 'err' }, e.message), alts);
+      }
+    }
   }
 
   /* ── akış ve animasyon */
@@ -226,6 +311,7 @@ export function GameScreen(ctx) {
       case 'wrong': return `❌ ${e.nick}: ${e.name} — ${(e.reasons || []).join(', ')}`;
       case 'pass': return `⏭ ${e.nick} pas geçti`;
       case 'timeout': return `⏱ ${e.nick}: süre doldu`;
+      case 'hint': return `💡 ${e.nick} ipucu kullandı`;
       case 'left': return `🚪 ${e.nick} maçtan ayrıldı`;
       default: return '';
     }
@@ -283,7 +369,7 @@ export function GameScreen(ctx) {
       rec
         ? h('p', { class: 'elo' }, 'ELO ', h('b', {}, String(rec.stats.elo)), ' ', h('span', { class: rec.delta >= 0 ? 'up' : 'down' }, `${rec.delta >= 0 ? '+' : ''}${rec.delta}`))
         : null,
-      h('p', { class: 'hint center' }, 'Hücrelere dokunarak diğer olası cevapları gör.'),
+      h('p', { class: 'hint center' }, 'Hücrelere dokun: oyuncu kartı ve diğer olası cevaplar.'),
       room.status === 'finished'
         ? isHost
           ? h('button', { class: 'btn primary big', on: { click: () => net.request('room/start').catch((e) => toast(e.message, 'error')) } }, 'RÖVANŞ')
@@ -304,23 +390,29 @@ export function GameScreen(ctx) {
     g = next.game;
     if (!g) return;
     const my = me();
+    const meP = player(my);
     const t = g.turn;
-    const myTurn = !!t && !g.over && t.pid === my;
-    if ((t?.no ?? null) !== lastTurnNo) {
-      lastTurnNo = t?.no ?? null;
-      localSel = null;
-      panel._cell = undefined;
-      input.value = '';
-      renderSugg([]);
-    }
-    const sel = myTurn ? (localSel ?? t.selected) : (t?.selected ?? null);
-    const cur = t ? player(t.pid) : null;
+    const playing = !g.over && (race ? !!meP && !meP.left : !!t && t.pid === my);
 
-    turnNo.textContent = g.over ? 'MAÇ BİTTİ' : `HAMLE ${g.turnNo}/${g.maxTurns}`;
+    if (!race && (t?.no ?? null) !== lastTurnNo) {
+      lastTurnNo = t?.no ?? null;
+      resetSel();
+      hint = null;
+    }
+    if (race && localSel !== null && !takeableFor(localSel)) {
+      const c = g.cells[localSel];
+      if (c.owner && c.owner !== my) toast(`${player(c.owner)?.nick} bu hücreyi kaptı!`, 'info', 1800);
+      resetSel();
+    }
+    const sel = playing ? (localSel ?? (race ? null : t.selected)) : race ? null : (t?.selected ?? null);
+    const cur = t ? player(t.pid) : null;
+    const cd = penalty();
+
+    turnNo.textContent = g.over ? 'MAÇ BİTTİ' : race ? '' : `HAMLE ${g.turnNo}/${g.maxTurns}`;
 
     board.replaceChildren(...g.order.map(player).filter(Boolean).map((p) =>
       h('div', {
-        class: `pchip${t?.pid === p.pid ? ' turn' : ''}${p.left ? ' left' : ''}${p.online ? '' : ' off'}${p.pid === my ? ' me' : ''}`,
+        class: `pchip${!race && t?.pid === p.pid ? ' turn' : ''}${p.left ? ' left' : ''}${p.online ? '' : ' off'}${p.pid === my ? ' me' : ''}`,
         dataset: { color: p.color },
         title: p.left ? 'Maçtan ayrıldı' : p.online ? p.nick : 'Bağlantısı yok',
       },
@@ -330,10 +422,13 @@ export function GameScreen(ctx) {
         p.bot ? h('span', { class: 'bot', 'aria-label': 'bot' }, '🤖') : null,
         h('span', { class: 'cnt' }, String(p.cells)))));
 
-    banner.dataset.color = cur?.color || '';
-    banner.classList.toggle('mine', myTurn);
+    banner.dataset.color = race ? meP?.color || '' : cur?.color || '';
+    banner.classList.toggle('mine', playing);
     if (g.over) btxt.textContent = 'Maç bitti.';
-    else if (myTurn) btxt.textContent = sel !== null ? `${cellName(sel)} — futbolcuyu yaz, listeden seç` : 'Sıra sende! Bir hücre seç.';
+    else if (race) {
+      btxt.textContent =
+        cd > 0 ? `Yanlış cevap cezası · ${Math.ceil(cd / 1000)} sn bekle` : sel !== null ? `${cellName(sel)} — yaz, listeden seç` : 'Aynı anda! Bir hücre seç, ilk doğru bilen kapar.';
+    } else if (playing) btxt.textContent = sel !== null ? `${cellName(sel)} — futbolcuyu yaz, listeden seç` : 'Sıra sende! Bir hücre seç.';
     else if (cur) btxt.replaceChildren(h('b', {}, cur.nick), !cur.online ? ' · bağlantısı yok, sıra birazdan geçecek' : sel !== null ? ` düşünüyor · ${cellName(sel)}` : ' hücre seçiyor…');
 
     g.cells.forEach((c, i) => {
@@ -349,24 +444,28 @@ export function GameScreen(ctx) {
           c.locked ? h('span', { class: 'lock', 'aria-hidden': 'true' }, '🔒') : null);
         cell.setAttribute('aria-label', `${cellName(i)}${c.owner ? ` — ${c.name}, ${owner?.nick || ''}` : ''}`);
       }
-      const takeable = myTurn && (!c.owner || (g.steal && c.owner !== my && !c.locked));
+      const takeable = playing && cd <= 0 && takeableFor(i);
       cell.classList.toggle('takeable', takeable);
       cell.classList.toggle('selected', sel === i && !g.over);
-      cell.style.setProperty('--sel', COLOR_HEX[cur?.color] || '#14203a');
-      cell.disabled = !(takeable || g.over);
+      cell.style.setProperty('--sel', COLOR_HEX[(race ? meP : cur)?.color] || '#14203a');
+      cell.disabled = !(takeable || g.over || (race && playing));
       cell.classList.toggle('win', !!g.result?.winLine?.includes(i));
     });
 
-    if (myTurn && sel !== null) {
+    if (playing && sel !== null && cd <= 0) {
       if (panel._cell !== sel) {
         panel._cell = sel;
         target.replaceChildren(catChip(g.rows[Math.floor(sel / size)]), h('span', { class: 'x' }, '×'), catChip(g.cols[sel % size]));
       }
+      const hintHere = hint && hint.cell === sel;
+      hintBtn.hidden = !g.hints || !!meP?.hintUsed;
+      hintBox.hidden = !hintHere;
+      if (hintHere) hintBox.textContent = hint.text;
       panel.hidden = false;
       pickBar.hidden = true;
     } else {
       panel.hidden = true;
-      pickBar.hidden = !myTurn;
+      pickBar.hidden = !playing || cd > 0;
     }
 
     renderFeed();
@@ -377,8 +476,8 @@ export function GameScreen(ctx) {
 
   function frame() {
     raf = requestAnimationFrame(frame);
-    const t = g.turn;
-    if (!t || g.over) {
+    const endsAt = g.over ? null : race ? g.deadline : g.turn?.endsAt;
+    if (!endsAt) {
       if (secs._v !== null) {
         secs._v = null;
         secs.textContent = '';
@@ -387,16 +486,24 @@ export function GameScreen(ctx) {
       }
       return;
     }
-    const left = Math.max(0, t.endsAt - net.now());
-    fill.style.transform = `scaleX(${Math.min(1, left / g.turnMs)})`;
-    const sec = Math.ceil(left / 1000);
-    if (secs._v !== sec) {
-      secs._v = sec;
-      secs.textContent = `${sec} sn`;
-      banner.classList.toggle('urgent', sec <= 5);
+    const left = Math.max(0, endsAt - net.now());
+    fill.style.transform = `scaleX(${Math.min(1, left / (race ? g.matchMs : g.turnMs))})`;
+    const label2 = race ? mmss(left) : `${Math.ceil(left / 1000)} sn`;
+    if (secs._v !== label2) {
+      secs._v = label2;
+      secs.textContent = label2;
+      banner.classList.toggle('urgent', left <= (race ? 15000 : 5000));
     }
   }
   raf = requestAnimationFrame(frame);
 
-  return { el, update, onLog, destroy: () => cancelAnimationFrame(raf) };
+  return {
+    el,
+    update,
+    onLog,
+    destroy: () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(cdTimer);
+    },
+  };
 }

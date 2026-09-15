@@ -162,7 +162,34 @@ Oda ve maç kodu oyuncuyu yalnızca `pid` ile bilir. Hesap eklemek için `Sessio
 (`server/sessions.js`), istatistik arayüzü (`store.stats / record / forfeit`) uzak bir depoya taşınır.
 Oyun akışında değişiklik gerekmez.
 
-## Kalıcı yayın (isteğe bağlı)
+## Oda ayarları
 
-`render.yaml` hazır: repoyu Render'a bağlamak yeterli. Ücretsiz katman 15 dk boşta kalınca uyur;
-odalar bellekte tutulduğu için uyuyunca açık odalar kapanır. GitHub Pages yetmez (sunucu gerekiyor).
+Oda kurarken seçilir; host lobide **AYARLAR** ile maçtan önce (ve rövanştan önce) değiştirebilir.
+
+| Ayar | Seçenekler |
+|---|---|
+| Oyuncu sayısı | 2 · 3 · 4 |
+| Oyun modu | Klasik · Hızlı · Uzman |
+| Oyun tarzı | **Sırayla** (tur süresi 15/30/45/60 sn) · **Aynı anda** (sıra yok, ilk doğru bilen kapar, yanlış cevaba 3 sn ceza; maç süresi 1/2/3/5 dk) |
+| Kazanma şekli | 3'leme · En çok hücre (3-4 kişide) |
+| İpucu | Açık: maç başına 1 (olası bir cevabın baş harfleri, harf sayısı, doğum yılı, uyruğu) · Kapalı |
+| Aynı futbolcu | Bir kez · Tekrar olur |
+
+Derbi ve Türkiye jokerleri: "GS · FB · BJK en az ikisinde oynadı", "Süper Lig'de oynamış yabancı", "Yurt dışında
+oynamış Türk". Maç bitince hücreye dokun: **oyuncu kartı** (oyundaki kulüpleri yıllarıyla, kupaları, çalıştığı hocalar,
+özellikleri) ve diğer olası cevaplar (onların kartları da açılır). Kartlar maç sırasında açılmaz.
+
+## Telefondan oynamak (bilgisayar açık olmadan)
+
+GitHub Pages bu oyunu çalıştıramaz; odalar için sürekli açık bir sunucu gerekir. Ücretsiz ve kalıcı yol: **Render**.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/erenapuhan18/footballgrid)
+
+1. Düğmeye bas → **GitHub ile giriş yap** (kredi kartı istemez).
+2. `render.yaml` okunur (Frankfurt, ücretsiz plan) → **Deploy Blueprint / Apply**.
+3. 2-3 dk sonra `https://footballgrid-xxxx.onrender.com` hazır. Telefonda aç → tarayıcı menüsünden **Ana ekrana ekle**:
+   uygulama gibi tam ekran açılır.
+4. Bu depoya her `git push`'ta Render kendini günceller.
+
+Ücretsiz planda 15 dk kimse girmezse sunucu uyur; ilk açılış ~30-60 sn sürer. Odalar bellekte tutulur, sunucu uyuyunca
+açık odalar kapanır. Sunucu ~170 MB bellek kullanır (sınır 512 MB).

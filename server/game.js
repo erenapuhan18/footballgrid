@@ -1,12 +1,16 @@
 /* FOOTBALLGRID maç motoru.
-   Sıra gelen oyuncu bir hücre seçer ve satır + sütun şartına uyan bir futbolcu söyler.
-   Doğru → hücre onun rengine boyanır. Yanlış / pas / süre dolması → sıra geçer.
-   2 kişi: 3×3, yan yana üç hücre kazanır. 3-4 kişi: en çok hücre kapan kazanır.
-   Uzman: rakibin hücresini başka bir futbolcuyla çalabilirsin (çalınan hücre kilitlenir). */
+   Sırayla (turn): sıra gelen oyuncu bir hücre seçer ve satır + sütun şartına uyan bir futbolcu söyler;
+     doğru → hücre onun rengine boyanır; yanlış / pas / süre dolması → sıra geçer.
+   Aynı anda (race): sıra yok; herkes istediği hücreye cevap verir, ilk doğru bilen hücreyi kapar;
+     yanlış cevap 3 sn ceza getirir; maç süresi dolunca biter.
+   Kazanma: 2 kişide ya da 3'leme kuralında yan yana 3 hücre, yoksa en çok hücre.
+   Uzman: rakibin hücresi başka bir futbolcuyla çalınabilir (çalınan hücre kilitlenir).
+   Seçenekler: aynı futbolcu tekrar kullanılabilir (reuse), maç başına 1 ipucu (hints). */
 
 import { EventEmitter } from 'node:events';
 
 export const OFFLINE_TURN_MS = 5000;
+export const RACE_PENALTY_MS = 3000;
 
 /** win: 'line3' → yan yana 3 hücre kazanır (2 kişide her zaman), 'most' → en çok hücre. */
 export function gameShape(mode, n, win) {
@@ -50,12 +54,16 @@ let logSeq = 0;
 
 export class Game extends EventEmitter {
   /** players: [{ pid, nick, color, bot }] — grid: { rows, cols } kategori nesneleri */
-  constructor({ db, mode, turnTime, players, grid, win, rng = Math.random }) {
+  constructor({ db, mode, turnTime = 30, players, grid, win, style = 'turn', matchTime = 180, reuse = false, hints = true, rng = Math.random }) {
     super();
     this.db = db;
     this.mode = mode;
     this.turnMs = turnTime * 1000;
     this.rng = rng;
+    this.style = style === 'race' ? 'race' : 'turn';
+    this.matchMs = matchTime * 1000;
+    this.reuse = !!reuse;
+    this.hints = !!hints;
     Object.assign(this, gameShape(mode, players.length, win));
     this.lines = linesFor(this.size, 3);
     this.rows = grid.rows;
@@ -65,13 +73,16 @@ export class Game extends EventEmitter {
     this.players = new Map(
       players.map((p) => [
         p.pid,
-        { pid: p.pid, nick: p.nick, color: p.color, bot: !!p.bot, left: false, online: true,
-          stats: { correct: 0, wrong: 0, pass: 0, timeout: 0, steals: 0 } },
+        {
+          pid: p.pid, nick: p.nick, color: p.color, bot: !!p.bot, left: false, online: true, hintUsed: false, cooldownUntil: 0,
+          stats: { correct: 0, wrong: 0, pass: 0, timeout: 0, steals: 0 },
+        },
       ]),
     );
     this.turnIdx = -1;
     this.turnNo = 0;
     this.turn = null;
+    this.deadline = null;
     this.used = new Set();
     this.log = [];
     this.over = false;
@@ -81,6 +92,11 @@ export class Game extends EventEmitter {
   }
 
   /* ───────── yardımcılar */
+
+  /** Cevap önerirken dışarıda bırakılacaklar (tekrar kullanım açıksa hiçbiri). */
+  get excluded() {
+    return this.reuse ? null : this.used;
+  }
 
   catsOf(cell) {
     return [this.rows[Math.floor(cell / this.size)], this.cols[cell % this.size]];
@@ -124,6 +140,13 @@ export class Game extends EventEmitter {
 
   start() {
     this.startedAt = Date.now();
+    if (this.style === 'race') {
+      this.deadline = Date.now() + this.matchMs;
+      this.timer = setTimeout(() => this.end('time'), this.matchMs);
+      this.emit('race');
+      this.changed();
+      return;
+    }
     this.advance();
   }
 
@@ -162,11 +185,19 @@ export class Game extends EventEmitter {
 
   checkTurn(pid) {
     if (this.over) return 'Maç bitti.';
+    if (this.style === 'race') {
+      const p = this.players.get(pid);
+      if (!p || p.left) return 'Bu maçta değilsin.';
+      const wait = p.cooldownUntil - Date.now();
+      if (wait > 0) return `Yanlış cevap cezası: ${Math.ceil(wait / 1000)} sn bekle.`;
+      return null;
+    }
     if (!this.turn || this.turn.pid !== pid) return 'Sıra sende değil.';
     return null;
   }
 
   select(pid, cell) {
+    if (this.style === 'race') return { ok: true }; // aynı anda modunda seçim yalnızca oyuncunun kendi ekranında
     const err = this.checkTurn(pid) || (cell === null ? null : this.canTake(pid, cell));
     if (err) return { ok: false, error: err };
     this.turn.selected = cell;
@@ -179,7 +210,8 @@ export class Game extends EventEmitter {
     if (err) return { ok: false, error: err };
     const player = Number.isInteger(fid) ? this.db.players[fid] : null;
     if (!player) return { ok: false, error: 'Futbolcu bulunamadı, listeden seç.' };
-    if (this.used.has(fid)) return { ok: false, error: `${player.name} bu maçta zaten kullanıldı.` };
+    if (!this.reuse && this.used.has(fid)) return { ok: false, error: `${player.name} bu maçta zaten kullanıldı.` };
+    if (this.cells[cell].fid === fid) return { ok: false, error: 'Bu hücrede zaten o futbolcu var.' };
 
     const me = this.players.get(pid);
     const [row, col] = this.catsOf(cell);
@@ -198,6 +230,9 @@ export class Game extends EventEmitter {
       if (line) {
         this.winLine = line;
         this.end('line');
+      } else if (this.style === 'race') {
+        if (this.cells.every((x) => x.owner)) this.end('full');
+        else this.changed();
       } else {
         this.advance();
       }
@@ -207,17 +242,45 @@ export class Game extends EventEmitter {
     me.stats.wrong++;
     const reasons = [!okRow && this.db.failText(row), !okCol && this.db.failText(col)].filter(Boolean);
     this.pushLog({ kind: 'wrong', pid, cell, name: player.name, reasons });
+    if (this.style === 'race') {
+      me.cooldownUntil = Date.now() + RACE_PENALTY_MS;
+      this.changed();
+      return { ok: true, correct: false, reasons, penalty: RACE_PENALTY_MS / 1000 };
+    }
     this.advance();
     return { ok: true, correct: false, reasons };
   }
 
   pass(pid) {
+    if (this.style === 'race') return { ok: false, error: 'Aynı anda modunda pas yok; istediğin hücreyi seç.' };
     const err = this.checkTurn(pid);
     if (err) return { ok: false, error: err };
     this.players.get(pid).stats.pass++;
     this.pushLog({ kind: 'pass', pid });
     this.advance();
     return { ok: true };
+  }
+
+  /** Maç başına 1 ipucu: hücrenin olası cevaplarından birinin baş harfleri, doğum yılı ve uyruğu. */
+  hint(pid, cell) {
+    if (!this.hints) return { ok: false, error: 'Bu odada ipucu kapalı.' };
+    const err = this.checkTurn(pid) || (Number.isInteger(cell) ? this.canTake(pid, cell) : 'Önce bir hücre seç.');
+    if (err) return { ok: false, error: err };
+    const me = this.players.get(pid);
+    if (me.hintUsed) return { ok: false, error: 'İpucu hakkını bu maçta kullandın.' };
+    const [row, col] = this.catsOf(cell);
+    const cands = this.db.answers(row, col, 8, this.excluded).filter((p) => p.i !== this.cells[cell].fid);
+    if (!cands.length) return { ok: false, error: 'Bu hücre için ipucu bulunamadı.' };
+    const p = cands[Math.floor(this.rng() * Math.min(cands.length, 4))];
+    me.hintUsed = true;
+    this.pushLog({ kind: 'hint', pid, cell });
+    this.changed();
+    const initials = p.name
+      .split(/[\s-]+/)
+      .filter(Boolean)
+      .map((w) => w[0].toLocaleUpperCase('tr') + '.')
+      .join(' ');
+    return { ok: true, hint: { initials, by: p.by, nats: this.db.natNames(p), letters: p.name.replace(/[\s-]/g, '').length } };
   }
 
   setOnline(pid, online) {
@@ -276,7 +339,11 @@ export class Game extends EventEmitter {
 
     const answers = this.cells.map((c, i) => {
       const [row, col] = this.catsOf(i);
-      const alts = this.db.answers(row, col, 4, this.used).map((p) => p.name);
+      const alts = this.db
+        .answers(row, col, 5, this.excluded)
+        .filter((p) => p.i !== c.fid)
+        .slice(0, 4)
+        .map((p) => ({ id: p.i, name: p.name }));
       return { alts, total: this.db.count(row, col) };
     });
 
@@ -303,20 +370,26 @@ export class Game extends EventEmitter {
   snapshot() {
     return {
       mode: this.mode,
+      style: this.style,
       size: this.size,
       steal: this.steal,
       lineWin: this.lineWin,
+      reuse: this.reuse,
+      hints: this.hints,
       maxTurns: this.maxTurns,
       turnNo: this.turnNo,
       turnMs: this.turnMs,
+      matchMs: this.matchMs,
+      deadline: this.deadline,
       rows: this.rows.map((c) => this.db.publicCat(c)),
       cols: this.cols.map((c) => this.db.publicCat(c)),
-      cells: this.cells.map((c) => ({ owner: c.owner, name: c.name, locked: c.locked })),
+      cells: this.cells.map((c) => ({ owner: c.owner, name: c.name, locked: c.locked, fid: c.fid })),
       turn: this.turn && { pid: this.turn.pid, no: this.turn.no, endsAt: this.turn.endsAt, selected: this.turn.selected },
       order: this.order,
       players: [...this.players.values()].map((p) => ({
         pid: p.pid, nick: p.nick, color: p.color, bot: p.bot, left: p.left, online: p.online,
         cells: this.cellsOf(p.pid), correct: p.stats.correct, wrong: p.stats.wrong,
+        hintUsed: p.hintUsed, cooldownUntil: p.cooldownUntil,
       })),
       log: this.log.slice(-8),
       over: this.over,

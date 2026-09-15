@@ -45,6 +45,15 @@ function setPath(p) {
 const inviteLink = (code) => `${S.publicUrl}/oda/${code}`;
 const fine = () => matchMedia('(pointer: fine)').matches;
 
+/** Oda ayarlarının tek satırlık özeti. */
+function settingsText(s) {
+  const parts = [MODE[s.mode]?.name, s.style === 'race' ? `Aynı anda · ${s.matchTime / 60} dk` : `Sırayla · ${s.turnTime} sn`];
+  if (s.capacity > 2) parts.push(WIN[s.win]);
+  parts.push(s.hints ? 'İpucu açık' : 'İpucu kapalı');
+  parts.push(s.reuse ? 'Aynı futbolcu tekrar olur' : 'Aynı futbolcu bir kez');
+  return parts.join(' · ');
+}
+
 /* ───────── bağlantı */
 
 const net = new Net({
@@ -94,6 +103,9 @@ net.on('event', (e) => {
       break;
     case 'renamed':
       toast(`Odada başka bir ${e.from} vardı; bu maçta adın ${e.nick}.`, 'info', 4500);
+      break;
+    case 'settings':
+      if (S.room && S.room.hostPid !== S.pid) toast('Host oda ayarlarını değiştirdi');
       break;
     case 'closed':
       if (e.reason === 'idle') toast('Oda uzun süre boşta kaldığı için kapandı.');
@@ -268,6 +280,51 @@ async function checkNick(input, err) {
   }
 }
 
+/** Oda ayarları formu — oda kurarken ve lobide (host) aynı bileşen. */
+function SettingsForm(init = {}, { minCapacity = 2 } = {}) {
+  const st = { capacity: 2, mode: 'klasik', turnTime: 30, win: 'line3', style: 'turn', matchTime: 180, hints: true, reuse: false, ...init };
+  const uid = Math.random().toString(36).slice(2, 7); // aynı sayfada iki form olursa radio adları çakışmasın
+  const note = h('p', { class: 'hint center' });
+  const boxes = {};
+  const update = () => {
+    const size = st.mode === 'hizli' || st.capacity === 2 ? 3 : 4;
+    const line = st.capacity === 2 || st.win === 'line3';
+    const tempo = st.style === 'race' ? `aynı anda, ${st.matchTime / 60} dk` : `sırayla, tur ${st.turnTime} sn`;
+    note.textContent = `${size}×${size} ızgara · ${line ? 'yan yana 3 hücre kapan kazanır' : 'en çok hücre kapan kazanır'} · ${tempo}`;
+    boxes.win.hidden = st.capacity === 2;
+    boxes.turnTime.hidden = st.style !== 'turn';
+    boxes.matchTime.hidden = st.style !== 'race';
+    for (const [key, box] of Object.entries(boxes)) for (const i of box.querySelectorAll('input')) i.checked = String(st[key]) === i.value;
+  };
+  const group = (title, key, opts) =>
+    (boxes[key] = h('fieldset', { class: 'group' }, h('legend', { class: 'label' }, title),
+      h('div', { class: `chips k-${key}` }, opts.map(([v, label, desc, disabled]) =>
+        h('label', { class: 'chip' },
+          h('input', {
+            type: 'radio', name: `${key}-${uid}`, value: String(v), disabled: !!disabled,
+            on: { change: () => { st[key] = v; if (key === 'capacity') st.win = v === 4 ? 'most' : 'line3'; update(); } },
+          }),
+          h('span', { class: 'chip-body' }, h('b', {}, label), desc ? h('small', {}, desc) : null))))));
+  const el = h('div', { class: 'settings-form' },
+    group('Oyuncu sayısı', 'capacity', [2, 3, 4].map((n) => [n, `${n} Kişi`, null, n < minCapacity])),
+    group('Oyun modu', 'mode', Object.entries(MODE).map(([k, m]) => [k, m.name, m.desc])),
+    group('Oyun tarzı', 'style', [
+      ['turn', 'Sırayla', 'Sırası gelen tek hamle yapar'],
+      ['race', 'Aynı anda', 'Sıra yok; hücreyi ilk doğru bilen kapar, yanlışa 3 sn ceza'],
+    ]),
+    group('Tur süresi', 'turnTime', [[15, '15 sn'], [30, '30 sn'], [45, '45 sn'], [60, '60 sn']]),
+    group('Maç süresi', 'matchTime', [[60, '1 dk'], [120, '2 dk'], [180, '3 dk'], [300, '5 dk']]),
+    group('Kazanma şekli', 'win', [
+      ['line3', "3'leme", 'Yan yana 3 hücre (yatay, dikey ya da çapraz) kapan kazanır'],
+      ['most', 'En çok hücre', 'Izgara dolunca ya da süre bitince en çok hücresi olan kazanır'],
+    ]),
+    group('İpucu', 'hints', [[true, 'Açık', 'Maç başına 1 ipucu'], [false, 'Kapalı', 'İpucu yok']]),
+    group('Aynı futbolcu', 'reuse', [[false, 'Bir kez', 'Her futbolcu maçta bir kez'], [true, 'Tekrar olur', 'Birden çok hücrede kullanılabilir']]),
+    note);
+  update();
+  return { el, get: () => ({ ...st }) };
+}
+
 function Footer() {
   const st = store.stats();
   return h(
@@ -319,18 +376,23 @@ function showRules() {
     'NASIL OYNANIR?',
     h('div', { class: 'rules' },
       h('ol', {},
-        h('li', {}, 'Her hücre, satırındaki ve sütunundaki iki şartın kesişimidir. ', h('b', {}, 'Galatasaray × Brezilya'), " → Galatasaray'da oynamış Brezilyalı bir futbolcu."),
-        h('li', {}, 'Sıran gelince bir hücre seç, futbolcunun adını yaz ve listeden seç.'),
-        h('li', {}, 'Doğruysa hücre senin rengine boyanır. Yanlışsa ya da süre biterse sıra geçer.'),
-        h('li', {}, 'Bir futbolcu bir maçta yalnızca bir kez kullanılabilir.'),
-        h('li', {}, "2 kişide ve 3'leme kuralında yan yana (yatay, dikey ya da çapraz) 3 hücre kapan kazanır. 'En çok hücre' kuralında ızgara dolunca ya da hamleler bitince en çok hücresi olan kazanır."),
-        h('li', {}, 'Başlık türleri: kulüp, ülke, lig, kupa (Şampiyonlar Ligi, Dünya Kupası, lig şampiyonluğu…), menajer ("Mourinho ile çalışmış") ve jokerler (Ballon d\'Or, 2000 sonrası doğumlu, 5+ takım…).'),
+        h('li', {}, 'Her hücre, satırındaki ve sütunundaki iki şartın kesişimidir. ', h('b', {}, 'Galatasaray × Brezilya uyruklu'), " → Galatasaray'da oynamış Brezilyalı bir futbolcu."),
+        h('li', {}, 'Hücre seç, futbolcunun adını yaz ve listeden seç. Doğruysa hücre senin rengine boyanır.'),
+        h('li', {}, "Başlıklar ne istediğini söyler: \"Claudio Ranieri / ile çalıştı\", \"Şampiyonlar Ligi / kazandı\", \"Premier Lig'de / oynadı\", \"GS · FB · BJK / en az ikisinde oynadı\"."),
+        h('li', {}, "2 kişide ve 3'leme kuralında yan yana (yatay, dikey ya da çapraz) 3 hücre kapan kazanır; 'En çok hücre' kuralında süre ya da hamleler bitince en çok hücresi olan."),
       ),
-      h('h4', {}, 'MODLAR'),
-      h('ul', { class: 'modes' }, Object.values(MODE).map((m) => h('li', {}, h('b', {}, m.name), ' — ', m.desc))),
+      h('h4', {}, 'OYUN TARZI'),
+      h('ul', { class: 'modes' },
+        h('li', {}, h('b', {}, 'Sırayla'), ' — sırası gelen tek hamle yapar; yanlış, pas ya da süre bitince sıra geçer.'),
+        h('li', {}, h('b', {}, 'Aynı anda'), ' — sıra yok; herkes istediği hücreye cevap verir, ilk doğru bilen kapar. Yanlış cevap 3 sn ceza.')),
+      h('h4', {}, 'MODLAR VE AYARLAR'),
+      h('ul', { class: 'modes' },
+        Object.values(MODE).map((m) => h('li', {}, h('b', {}, m.name), ' — ', m.desc)),
+        h('li', {}, h('b', {}, 'İpucu'), ' — açıksa maç başına 1 kez: olası bir cevabın baş harfleri, doğum yılı ve uyruğu.'),
+        h('li', {}, h('b', {}, 'Aynı futbolcu'), ' — "bir kez" seçiliyse bir futbolcu maçta yalnızca bir hücrede kullanılır.')),
       h('p', { class: 'hint' },
-        `Veri: Wikidata'daki kariyer geçmişleri${S.db ? ` (${S.db.players.toLocaleString('tr-TR')} futbolcu)` : ''}. ` +
-          'Kulüpte oynamak tüm kariyer boyunca sayılır; çifte vatandaşlık da geçerlidir.'),
+        `Veri: Wikidata'daki kariyer geçmişleri${S.db ? ` (${S.db.players.toLocaleString('tr-TR')} futbolcu)` : ''} ve güncel kadrolar. ` +
+          'Maç bitince hücreye dokun: oyuncu kartını ve diğer olası cevapları gör.'),
     ),
   );
 }
@@ -398,7 +460,7 @@ function QuickScreen() {
     h('h2', { class: 'title' }, 'HIZLI MAÇ'),
     h('p', { class: 'lead' }, 'Kaç kişilik maç arıyorsun?'),
     h('div', { class: 'sizes' }, card(2), card(3), card(4)),
-    h('p', { class: 'hint center' }, `Klasik mod · 30 sn tur süresi · oynayan: ${store.nick()}`));
+    h('p', { class: 'hint center' }, `Klasik mod · sırayla · 30 sn tur · ipucu açık · oynayan: ${store.nick()}`));
   return { el, destroy: () => clearInterval(iv) };
 }
 
@@ -460,47 +522,19 @@ function SearchingScreen() {
 }
 
 function CreateScreen() {
-  const st = { capacity: 2, mode: 'klasik', turnTime: 30, win: 'line3' };
-  const note = h('p', { class: 'hint center' });
-  let winBox = null;
-  const updateNote = () => {
-    const size = st.mode === 'hizli' || st.capacity === 2 ? 3 : 4;
-    const line = st.capacity === 2 || st.win === 'line3';
-    note.textContent = `${size}×${size} ızgara · ${line ? 'yan yana 3 hücre kapan kazanır' : 'en çok hücre kapan kazanır'}`;
-    if (winBox) {
-      winBox.hidden = st.capacity === 2;
-      for (const i of winBox.querySelectorAll('input')) i.checked = i.value === st.win;
-    }
-  };
-  const group = (title, key, opts) =>
-    h('fieldset', { class: 'group' }, h('legend', { class: 'label' }, title),
-      h('div', { class: `chips k-${key}` }, opts.map(([v, label, desc]) =>
-        h('label', { class: 'chip' },
-          h('input', { type: 'radio', name: key, value: String(v), checked: st[key] === v, on: { change: () => { st[key] = v; if (key === 'capacity') st.win = v === 4 ? 'most' : 'line3'; updateNote(); } } }),
-          h('span', { class: 'chip-body' }, h('b', {}, label), desc ? h('small', {}, desc) : null)))));
+  const form = SettingsForm();
   const btn = h('button', { class: 'btn primary big', on: { click: submit } }, 'ODAYI OLUŞTUR');
   async function submit() {
     btn.disabled = true;
     try {
-      await net.request('room/create', { nick: store.nick(), ...st });
+      await net.request('room/create', { nick: store.nick(), ...form.get() });
     } catch (e) {
       toast(e.message, 'error');
     } finally {
       btn.disabled = false;
     }
   }
-  updateNote();
-  const el = h('section', { class: 'screen' }, Back(),
-    h('h2', { class: 'title' }, 'ODA OLUŞTUR'),
-    group('Oyuncu sayısı', 'capacity', [[2, '2 Kişi'], [3, '3 Kişi'], [4, '4 Kişi']]),
-    group('Oyun modu', 'mode', Object.entries(MODE).map(([k, m]) => [k, m.name, m.desc])),
-    group('Tur süresi', 'turnTime', [[15, '15 sn'], [30, '30 sn'], [45, '45 sn'], [60, '60 sn']]),
-    (winBox = group('Kazanma şekli', 'win', [
-      ['line3', "3'leme", 'Yan yana 3 hücre (yatay, dikey ya da çapraz) kapan kazanır'],
-      ['most', 'En çok hücre', 'Izgara dolunca ya da hamleler bitince en çok hücresi olan kazanır'],
-    ])),
-    note, btn);
-  updateNote();
+  const el = h('section', { class: 'screen' }, Back(), h('h2', { class: 'title' }, 'ODA OLUŞTUR'), form.el, btn);
   return { el };
 }
 
@@ -586,6 +620,30 @@ function LobbyScreen() {
       { actions: [() => h('button', { class: 'btn small', on: { click: copyLink } }, 'LİNKİ KOPYALA')] });
   }
 
+  function editSettings() {
+    const room = S.room;
+    const form = SettingsForm(room.settings, { minCapacity: room.members.length });
+    modal('ODA AYARLARI', h('div', {}, form.el), {
+      actions: [
+        (close) => h('button', { class: 'btn small', on: { click: close } }, 'VAZGEÇ'),
+        (close) => h('button', {
+          class: 'btn primary small',
+          on: {
+            click: async () => {
+              try {
+                await net.request('room/settings', { settings: form.get() });
+                close();
+                toast('Ayarlar kaydedildi', 'ok');
+              } catch (e) {
+                toast(e.message, 'error');
+              }
+            },
+          },
+        }, 'KAYDET'),
+      ],
+    });
+  }
+
   const el = h('section', { class: 'screen lobby' },
     h('div', { class: 'topbar' }, Logo('small'), h('button', { class: 'link', on: { click: () => leaveRoom() } }, 'Odadan çık')),
     Ticket(code, copyCode),
@@ -619,16 +677,20 @@ function LobbyScreen() {
             : null)),
       ...Array.from({ length: Math.max(0, free) }, () => h('li', { class: 'pl empty' }, h('span', { class: 'dot' }), h('span', { class: 'nick' }, 'Oyuncu bekleniyor...'))),
     );
-    settings.textContent = `${MODE[room.settings.mode]?.name} · ${room.settings.turnTime} sn tur süresi${room.settings.capacity > 2 ? ` · ${WIN[room.settings.win] || ''}` : ''}`;
+    settings.textContent = settingsText(room.settings);
     if (isHost) {
       const can = room.members.length >= 2;
       put(foot,
         h('button', { class: 'btn primary big', disabled: !can || room.status !== 'lobby', on: { click: () => net.request('room/start').catch((e) => toast(e.message, 'error')) } }, 'MAÇI BAŞLAT'),
         h('p', { class: 'hint center' }, !can ? 'Başlatmak için en az 2 oyuncu gerekli.' : free > 0 ? 'Oda dolmadan da başlatabilirsin.' : 'Herkes hazır.'),
-        free > 0 ? h('button', { class: 'btn ghost small', on: { click: () => net.request('room/addBot').catch((e) => toast(e.message, 'error')) } }, '+ BOT EKLE') : null,
+        h('div', { class: 'row2' },
+          h('button', { class: 'btn ghost small', on: { click: editSettings } }, 'AYARLAR'),
+          free > 0
+            ? h('button', { class: 'btn ghost small', on: { click: () => net.request('room/addBot').catch((e) => toast(e.message, 'error')) } }, '+ BOT EKLE')
+            : h('span')),
       );
     } else {
-      foot.replaceChildren(h('p', { class: 'waiting' }, "Host'un maçı başlatması bekleniyor", h('span', { class: 'dots' }, '...')));
+      put(foot, h('p', { class: 'waiting' }, "Host'un maçı başlatması bekleniyor", h('span', { class: 'dots' }, '...')));
     }
   }
   return { el, update };
@@ -658,7 +720,8 @@ function countdown(room) {
     const num = h('div', { class: 'cd-num' });
     const players = h('ul', { class: 'cd-players' });
     const title = room.quick && room.round === 0 ? 'RAKİPLER BULUNDU!' : room.round > 0 ? 'RÖVANŞ BAŞLIYOR' : 'MAÇ BAŞLIYOR';
-    const el = h('div', { class: 'countdown', role: 'status' }, h('p', { class: 'cd-title' }, title), num, players);
+    const sub = h('p', { class: 'cd-sub' }, settingsText(room.settings));
+    const el = h('div', { class: 'countdown', role: 'status' }, h('p', { class: 'cd-title' }, title), num, players, sub);
     document.body.append(el);
     cd = { el, num, players, last: null, room, iv: setInterval(cdTick, 100) };
   }

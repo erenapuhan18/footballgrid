@@ -640,6 +640,64 @@ button.ticket:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--i
 .rules h4 { margin: 8px 0 2px; font-size: 13px; letter-spacing: 0.12em; }
 .rules .modes { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
 
+/* ───────── ayar formu, ipucu, oyuncu kartı */
+
+.settings-form { display: flex; flex-direction: column; gap: 14px; }
+.chips.k-style { grid-template-columns: 1fr; }
+.chips.k-hints .chip-body, .chips.k-reuse .chip-body { align-items: flex-start; }
+.modal .settings-form { gap: 12px; }
+.cd-sub { margin: 4px 0 0; max-width: 420px; text-align: center; font-size: 13.5px; font-weight: 700; color: var(--ink-2); }
+
+.hint-btn {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border: 1.5px dashed var(--ink);
+  border-radius: 999px;
+  background: #fff7d6;
+  font-size: 13px;
+  font-weight: 800;
+}
+.hint-btn small { font-weight: 600; color: var(--ink-2); }
+.hintbox {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fff7d6;
+  border: 1.5px solid var(--yellow);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.cellinfo { display: flex; flex-direction: column; gap: 12px; }
+.alt-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.alt-link {
+  padding: 5px 10px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 13.5px;
+  font-weight: 750;
+}
+.alt-link:hover { background: var(--ink); color: var(--paper); }
+.pc-by { display: flex; align-items: center; gap: 6px; margin: 0; font-weight: 800; }
+
+.pcard { display: flex; flex-direction: column; gap: 12px; }
+.pc-head { display: flex; flex-direction: column; gap: 4px; }
+.pc-flags { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.pc-nat { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; }
+.pc-meta { margin: 0; color: var(--ink-2); font-weight: 650; }
+.pc-sec { display: flex; flex-direction: column; gap: 6px; }
+.pc-sec .label { margin: 0; }
+.pc-clubs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.pc-clubs li { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 8px; background: #fff; border: 1px solid var(--line-soft); }
+.pc-clubs .nm { font-weight: 800; }
+.pc-clubs .yr { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.pc-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.pc-tag { padding: 3px 9px; border-radius: 999px; border: 1.5px solid var(--ink); background: #fff; font-size: 13px; font-weight: 750; }
+.pc-tag.cup { background: #fff7d6; }
+.pc-list { margin: 0; font-size: 14px; font-weight: 650; }
+.pc-src { font-size: 13px; font-weight: 700; color: var(--ink-2); }
+
 @media (min-width: 720px) {
   #app { padding-top: 40px; }
 }

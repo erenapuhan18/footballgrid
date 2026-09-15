@@ -44,7 +44,7 @@ test('oda: oluştur, küçük harfli kodla katıl, aynı ad önerisi, dolu/bulun
   assert.match(code, /^[A-HJ-NP-Z2-9]{5}$/);
   const r1 = await host.room((r) => r.code === code);
   assert.equal(r1.hostPid, host.hello.pid);
-  assert.deepEqual(r1.settings, { capacity: 3, mode: 'klasik', turnTime: 30, win: 'line3' });
+  assert.deepEqual(r1.settings, { capacity: 3, mode: 'klasik', turnTime: 30, win: 'line3', style: 'turn', matchTime: 180, hints: true, reuse: false });
 
   const p2 = await client();
   await assert.rejects(p2.req('room/join', { code: code.toLowerCase(), nick: 'EREN' }), (e) => {
@@ -177,6 +177,39 @@ test("kazanma şekli: 3 kişide varsayılan 3'leme, 4 kişide en çok hücre, se
   assert.equal((await a.room((r) => r.settings.capacity === 4)).settings.win, 'most');
   await a.req('room/create', { nick: 'Seçen', capacity: 4, win: 'line3' });
   assert.equal((await a.room((r) => r.members[0]?.nick === 'Seçen')).settings.win, 'line3');
+});
+
+test('ayarlar: host lobide değiştirir; ipucu ve oyuncu kartı uçları', async () => {
+  const a = await client();
+  const b = await client();
+  const { code } = await a.req('room/create', { nick: 'Ayarcı', capacity: 2, style: 'race', matchTime: 60, hints: true, reuse: true });
+  let r = await a.room((x) => x.code === code);
+  assert.equal(r.settings.style, 'race');
+  assert.equal(r.settings.matchTime, 60);
+  assert.equal(r.settings.reuse, true);
+  await b.req('room/join', { code, nick: 'Konuk' });
+  await assert.rejects(b.req('room/settings', { settings: { mode: 'uzman' } }), (e) => e.code === 'not_host');
+  await a.req('room/settings', { settings: { mode: 'hizli', style: 'turn', hints: false } });
+  r = await b.room((x) => x.settings.mode === 'hizli');
+  assert.equal(r.settings.hints, false);
+  assert.equal(r.settings.style, 'turn');
+  await b.wait((m) => m.t === 'event' && m.kind === 'settings');
+  await assert.rejects(a.req('player/card', { fid: 0 }), (e) => e.code === 'bad_state', 'kart maç bitmeden açılmaz');
+
+  await a.req('room/settings', { settings: { hints: true } });
+  await a.req('room/start');
+  const playing = await a.room((x) => x.status === 'playing', 6000);
+  const cur = playing.game.turn.pid === a.hello.pid ? a : b;
+  const hint = await cur.req('game/hint', { cell: 0 });
+  assert.ok(hint.hint.initials.includes('.'));
+  // /i bayrağı Türkçe İ'yi i ile eşlemez → düz metin
+  await assert.rejects(cur.req('game/hint', { cell: 1 }), (e) => e.message.includes('hakkını'));
+
+  app.rooms.rooms.get(code).game.end('turns');
+  await a.room((x) => x.status === 'finished');
+  const { card } = await a.req('player/card', { fid: 0 });
+  assert.equal(card.id, 0);
+  assert.ok(card.name && Array.isArray(card.clubs));
 });
 
 test('takma ad kuralları sunucuda da uygulanır', async () => {

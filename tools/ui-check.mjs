@@ -248,7 +248,39 @@ try {
   check(found === 'RAKİPLER BULUNDU!', 'eşleşme: "RAKİPLER BULUNDU!"', found);
   await D.shot('15-found.png');
 
-  /* 11) masaüstü */
+  /* 11) aynı anda modu + ipucu + oyuncu kartı */
+  const H = await newPage('/');
+  await H.ev(`type($('#nick'), 'Hızlıcı'); btn('ODA OLUŞTUR').click(); await wait('.k-style');
+    $$('.chip').find((c) => c.textContent.startsWith('Aynı anda')).querySelector('input').click();
+    $$('.chip').find((c) => c.textContent.startsWith('Tekrar olur')).querySelector('input').click();`);
+  const formTxt = await H.ev(`return text();`);
+  check(['Oyun tarzı', 'Maç süresi', 'İpucu', 'Aynı futbolcu', 'Tekrar olur'].every((x) => formTxt.includes(x)), 'oda oluştur: tarz, maç süresi, ipucu, aynı futbolcu seçenekleri');
+  await H.shot('17-create-race.png');
+  const rc = await H.ev(`btn('ODAYI OLUŞTUR').click(); return (await wait('.lobby .tk-code')).textContent;`);
+  const G2 = await newPage('/oda/' + rc);
+  await G2.ev(`await wait('.ticket'); type($('#nick-inv'), 'Rakip'); btn('ODAYA KATIL').click(); await wait('.lobby');`);
+  const lobbyTxt = await H.ev(`await wait(() => $$('.pl:not(.empty)').length === 2); return $('.settings').textContent;`);
+  check(/Aynı anda · 3 dk/.test(lobbyTxt) && /tekrar olur/.test(lobbyTxt), 'lobi: ayar özeti', lobbyTxt);
+  await H.ev(`btn('MAÇI BAŞLAT').click(); await wait('.screen.game', 7000);`);
+  const raceInfo = await H.ev(`return { t: $('.gturn').textContent, b: $('.btxt').textContent };`);
+  check(raceInfo.t === 'AYNI ANDA' && /Aynı anda/.test(raceInfo.b), 'aynı anda modu: sıra yok, herkes oynar', JSON.stringify(raceInfo));
+  const rroom = app.rooms.rooms.get(rc);
+  const free = rroom.game.cells.findIndex((c) => !c.owner);
+  await H.ev(`$$('.grid .cell')[${free}].click(); await wait('.answer:not([hidden])'); $('.hint-btn').click(); await wait('.hintbox:not([hidden])');`);
+  const hintTxt = await H.ev(`return $('.hintbox').textContent;`);
+  check(/💡 .+ harf/.test(hintTxt), 'ipucu gösterildi', hintTxt);
+  await H.shot('18-race-hint.png');
+  const [rr, cc] = rroom.game.catsOf(free);
+  const ans = app.db.answers(rr, cc, 1)[0];
+  await pick(H, free, ans);
+  await H.ev(`await wait(() => $$('.grid .cell')[${free}].classList.contains('owned'));`);
+  rroom.game.end('time');
+  await H.ev(`await wait('.results:not([hidden])'); $$('.grid .cell')[${free}].click(); await wait('.pcard');`);
+  const cardTxt = await H.ev(`return $('.pcard').textContent;`);
+  check(cardTxt.includes('KULÜPLERİ'), 'oyuncu kartı açıldı', ans.name);
+  await H.shot('19-player-card.png');
+
+  /* 12) masaüstü */
   const W = await newPage('/', { width: 1280, height: 860, mobile: false });
   await W.shot('16-home-desktop.png');
   await noOverflow(W, 'masaüstü ana sayfa');

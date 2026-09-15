@@ -112,6 +112,23 @@ test('veritabanı: kupa, menajer ve joker kategorileri', () => {
   assert.deepEqual(db.publicCat(db.catByKey.get('club:aas')).head, ['Aslanspor', '']);
 });
 
+test('veritabanı: Türkiye jokerleri ve oyuncu kartı', () => {
+  const abroad = db.catByKey.get('wild:trabroad');
+  assert.ok(abroad && db.catByKey.get('wild:derby') && db.catByKey.get('wild:trforeign'));
+  assert.deepEqual(db.publicCat(abroad).head, ['Yurt dışında oynamış', 'Türk']);
+  const tr = db.catByKey.get('nat:tr').idx;
+  const trClubs = db.cats.filter((c) => c.type === 'club' && c.nation === 'tr').map((c) => c.idx);
+  const list = db.answers(abroad, abroad, 10000);
+  assert.ok(list.length > 0);
+  assert.ok(list.every((p) => p.nats.includes(tr) && p.clubs.some((ci) => !trClubs.includes(ci))));
+  const card = db.card(list[0].i);
+  assert.equal(card.name, list[0].name);
+  assert.ok(card.clubs.length >= 1 && card.clubs.every((c) => c.name && c.colors));
+  assert.ok(card.nats.some((n) => n.name === 'Türkiye'));
+  assert.ok(card.wild.includes('Yurt dışında oynamış Türk'));
+  assert.equal(db.card(10 ** 9), null);
+});
+
 test('ızgara: her modda çözülebilir, bariz hücre yok, tür karışımı var', () => {
   const colTypes = new Set();
   for (const [mode, size] of [['klasik', 3], ['klasik', 4], ['hizli', 3], ['uzman', 3], ['uzman', 4]]) {
@@ -138,9 +155,9 @@ test('ızgara: her modda çözülebilir, bariz hücre yok, tür karışımı var
 
 /* ───────── maç motoru */
 
-function newGame(mode = 'klasik', n = 2, turnTime = 30, win) {
+function newGame(mode = 'klasik', n = 2, turnTime = 30, win, opts = {}) {
   const players = ['A', 'B', 'C', 'D'].slice(0, n).map((pid, i) => ({ pid, nick: pid, color: ['blue', 'red', 'green', 'yellow'][i], bot: false }));
-  const g = new Game({ db, mode, turnTime, win, players, grid: makeGrid(db, mode, gameShape(mode, n, win).size), rng: () => 0.1 });
+  const g = new Game({ db, mode, turnTime, win, players, grid: makeGrid(db, mode, gameShape(mode, n, win).size), rng: () => 0.1, ...opts });
   g.start();
   return g;
 }
@@ -152,7 +169,7 @@ const wrongFor = (g, cell) => {
   const [r] = g.catsOf(cell);
   return db.players.find((p) => !db.matches(p, r) && !g.used.has(p.i));
 };
-/** A oyuncusu hedef hücreleri sırayla kapar, diğerleri pas geçer. */
+/** Oyuncu hedef hücreleri sırayla kapar, diğerleri pas geçer. */
 function playFor(g, pid, targets) {
   const todo = [...targets];
   while (!g.over && todo.length) {
@@ -161,6 +178,16 @@ function playFor(g, pid, targets) {
       g.answer(pid, cell, answerFor(g, cell).i);
     } else g.pass(g.turn.pid);
   }
+}
+/** İlk satırda iki sütuna birden uyan bir futbolcu (tekrar kullanım testi için). */
+function sharedPlayer(g) {
+  for (let c1 = 0; c1 < g.size; c1++) {
+    for (let c2 = c1 + 1; c2 < g.size; c2++) {
+      const p = db.players.find((x) => db.matches(x, g.rows[0]) && db.matches(x, g.cols[c1]) && db.matches(x, g.cols[c2]));
+      if (p) return [c1, c2, p];
+    }
+  }
+  return null;
 }
 
 test('maç şekli: oyuncu sayısı, mod ve kazanma kuralına göre', () => {
@@ -204,6 +231,7 @@ test('maç: 2 kişide yan yana üç hücre kazanır', () => {
   assert.deepEqual(g.result.winLine, [0, 1, 2]);
   assert.equal(g.result.standings[0].pid, a);
   assert.ok(g.result.answers.every((x) => Array.isArray(x.alts) && x.total >= 1));
+  assert.ok(g.result.answers.every((x) => x.alts.every((alt) => Number.isInteger(alt.id) && alt.name)));
   g.dispose();
 });
 
@@ -230,6 +258,61 @@ test("maç: 'en çok hücre' kuralında üçlü dizi maçı bitirmez", () => {
   assert.equal(g.result.reason, 'turns');
   assert.deepEqual(g.result.winners, [a]);
   g.dispose();
+});
+
+test('maç: aynı anda modu — sıra yok, ilk doğru bilen kapar, yanlışa 3 sn ceza, süre bitince en çok hücre', async () => {
+  const g = newGame('klasik', 2, 30, undefined, { style: 'race', matchTime: 0.3 });
+  const [a, b] = g.order;
+  assert.equal(g.turn, null);
+  assert.ok(g.deadline > Date.now());
+  assert.equal(g.answer(b, 0, answerFor(g, 0).i).correct, true, 'sırası olmayan da cevap verebilir');
+  assert.equal(g.answer(a, 0, answerFor(g, 0).i).error, 'Bu hücre dolu.');
+  const w = g.answer(a, 1, wrongFor(g, 1).i);
+  assert.equal(w.correct, false);
+  assert.equal(w.penalty, 3);
+  assert.match(g.answer(a, 2, answerFor(g, 2).i).error, /ceza/);
+  assert.equal(g.pass(a).ok, false);
+  await sleep(400);
+  assert.equal(g.over, true);
+  assert.equal(g.result.reason, 'time');
+  assert.deepEqual(g.result.winners, [b]);
+  g.dispose();
+});
+
+test('maç: "aynı futbolcu" ayarı — kapalıyken reddedilir, açıkken başka hücrede kabul edilir', () => {
+  for (const reuse of [false, true]) {
+    let g = null;
+    let found = null;
+    for (let k = 0; k < 40 && !found; k++) {
+      g?.dispose();
+      g = newGame('klasik', 2, 30, undefined, { reuse });
+      found = sharedPlayer(g);
+    }
+    assert.ok(found, 'iki hücreye uyan futbolcu bulunamadı');
+    const [c1, c2, p] = found;
+    const a = g.turn.pid;
+    const b = g.order.find((x) => x !== a);
+    assert.equal(g.answer(a, c1, p.i).correct, true);
+    const r = g.answer(b, c2, p.i);
+    if (reuse) assert.equal(r.correct, true, 'tekrar kullanım açık');
+    else assert.match(r.error, /zaten kullanıldı/);
+    g.dispose();
+  }
+});
+
+test('maç: ipucu — maç başına bir kez, sırayı yakmaz, kapalıysa verilmez', () => {
+  const g = newGame('klasik', 2, 30, undefined, { hints: true });
+  const a = g.turn.pid;
+  const r = g.hint(a, 0);
+  assert.equal(r.ok, true);
+  assert.ok(r.hint.initials.includes('.') && r.hint.letters > 0);
+  assert.equal(g.hint(a, 0).error, 'İpucu hakkını bu maçta kullandın.');
+  assert.equal(g.turn.pid, a, 'ipucu sırayı yakmaz');
+  assert.equal(g.log.at(-1).kind, 'hint');
+  g.dispose();
+  const off = newGame('klasik', 2, 30, undefined, { hints: false });
+  assert.equal(off.hint(off.turn.pid, 0).error, 'Bu odada ipucu kapalı.');
+  off.dispose();
 });
 
 test('maç: hamle sınırı dolunca en çok hücre kapan kazanır', () => {

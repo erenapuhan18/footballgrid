@@ -307,6 +307,16 @@ for (const p of P) {
 
 P.sort((a, b) => b.sl - a.sl);
 const arr = (s) => [...s].sort((a, b) => a - b);
+function clubYears(p) {
+  return arr(p.clubs)
+    .map((ci) => {
+      const sts = p.stints.filter((st) => st.key === 'c' + ci && st.ps !== null);
+      if (!sts.length) return [ci, null, null];
+      const end = Math.max(...sts.map((s) => s.pe));
+      return [ci, Math.floor(Math.min(...sts.map((s) => s.ps))), end >= NOW - 0.05 ? 0 : Math.floor(end)];
+    })
+    .sort((a, b) => (a[1] ?? 9999) - (b[1] ?? 9999));
+}
 const db = {
   ...base,
   enriched: true,
@@ -315,7 +325,11 @@ const db = {
   cups: COMPETITIONS.map((c) => ({ key: c[0], name: c[1], short: c[2], tier: c[5], desc: c[6], fail: c[7] })),
   managers: managers.map((m) => ({ key: m.key, name: m.name, tier: m.tier })),
   wilds: WILDCARDS.map((w) => ({ key: w[0], name: w[1], desc: w[2], fail: w[3], tier: w[4] })),
-  players: P.map((p) => [p.name, p.by, p.sl, arr(p.clubs), arr(p.nats), arr(p.leagues), p.pos, p.aliases, p.qid, arr(p.cups), arr(p.mgrs), arr(p.wild)]),
+  // 13. alan: oyuncu kartı için katalog kulüplerindeki yıllar [kulüp, başlangıç|null, bitiş|0=hâlâ|null]
+  players: P.map((p) => [
+    p.name, p.by, p.sl, arr(p.clubs), arr(p.nats), arr(p.leagues), p.pos, p.aliases, p.qid,
+    arr(p.cups), arr(p.mgrs), arr(p.wild), clubYears(p),
+  ]),
 };
 writeFileSync(OUT, JSON.stringify(db));
 console.log(`\n✔ ${P.length} futbolcu → ${OUT} (${Math.round(JSON.stringify(db).length / 1024)} KB)`);

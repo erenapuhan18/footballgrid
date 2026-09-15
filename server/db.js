@@ -1,4 +1,4 @@
-/* Futbolcu veritabanı: kategoriler, bit kümeleri (hücre başına cevap sayımı) ve isim araması.
+/* Futbolcu veritabanı: kategoriler, bit kümeleri (hücre başına cevap sayımı), isim araması ve oyuncu kartı.
    Kategori türleri: club · nat (uyruk) · lg (lig) · pos (mevki) · cup (kupa) · mgr (menajer) · wild (joker) */
 
 import { readFileSync } from 'node:fs';
@@ -66,12 +66,13 @@ export class FootballDB {
     this.source = raw.source;
     this.players = raw.players
       .filter((p) => !DENY.has(p[8]))
-      .map(([name, by, sl, clubs, nats, leagues, pos, aliases, qid, cups, mgrs, wild], i) => ({
+      .map(([name, by, sl, clubs, nats, leagues, pos, aliases, qid, cups, mgrs, wild, st], i) => ({
         i, name, by, sl, clubs, nats, leagues, pos, qid,
-        aliases: aliases || [], cups: cups || [], mgrs: mgrs || [], wild: wild || [],
+        aliases: aliases || [], cups: cups || [], mgrs: mgrs || [], wild: wild || [], st: st || null,
       }));
     // dosyada sitelink sayısına göre azalan sıralı → düşük indeks = daha tanınmış
 
+    const wilds = raw.wilds || [];
     this.cats = [
       ...raw.clubs.map((c, idx) => ({
         key: 'club:' + c.key, type: 'club', idx, name: c.name, short: c.short, colors: c.colors,
@@ -87,9 +88,12 @@ export class FootballDB {
       ...(raw.managers || []).map((m, idx) => ({
         key: 'mgr:' + m.key, type: 'mgr', idx, name: m.name, tier: m.tier, desc: `${m.name} ile çalışmış`, fail: `${m.name} ile çalışmadı`,
       })),
-      ...(raw.wilds || []).map((w, idx) => ({ key: 'wild:' + w.key, type: 'wild', idx, name: w.name, tier: w.tier, desc: w.desc, fail: w.fail, wildKey: w.key })),
+      ...wilds.map((w, idx) => ({ key: 'wild:' + w.key, type: 'wild', idx, name: w.name, tier: w.tier, desc: w.desc, fail: w.fail, wildKey: w.key })),
+      ...this.turkishWilds(raw, wilds.length),
     ];
     this.catByKey = new Map(this.cats.map((c) => [c.key, c]));
+    this.byType = {};
+    for (const c of this.cats) (this.byType[c.type] ||= [])[c.idx] = c;
 
     const N = this.players.length;
     this.words = Math.ceil(N / 32);
@@ -103,6 +107,33 @@ export class FootballDB {
     this.buildSearch();
   }
 
+  /** Derbi ve Türkiye jokerleri: mevcut kulüp/uyruk/lig verisinden hesaplanır. */
+  turkishWilds(raw, start) {
+    const clubIdx = (k) => raw.clubs.findIndex((c) => c.key === k);
+    const big3 = ['gs', 'fb', 'bjk'].map(clubIdx).filter((i) => i >= 0);
+    const trClubs = new Set(raw.clubs.map((c, i) => (c.nation === 'tr' ? i : -1)).filter((i) => i >= 0));
+    const trNat = raw.nations.findIndex((n) => n.key === 'tr');
+    const trLg = raw.leagues.findIndex((l) => l.key === 'tr1');
+    const defs = [
+      {
+        key: 'derby', head: ['GS · FB · BJK', 'en az ikisinde oynadı'],
+        desc: "İstanbul'un 3 büyüğünden en az ikisinde oynamış", fail: 'üç büyükten en az ikisinde oynamadı',
+        test: (p) => big3.filter((i) => p.clubs.includes(i)).length >= 2,
+      },
+      {
+        key: 'trforeign', head: ["Süper Lig'de oynamış", 'yabancı'],
+        desc: "Süper Lig'de oynamış yabancı futbolcu", fail: "Süper Lig'de oynamış bir yabancı değil",
+        test: (p) => p.leagues.includes(trLg) && !p.nats.includes(trNat),
+      },
+      {
+        key: 'trabroad', head: ['Yurt dışında oynamış', 'Türk'],
+        desc: 'Yurt dışı kulübünde oynamış Türk futbolcu', fail: 'yurt dışında oynamış bir Türk değil',
+        test: (p) => p.nats.includes(trNat) && p.clubs.some((i) => !trClubs.has(i)),
+      },
+    ];
+    return defs.map((d, k) => ({ ...d, key: 'wild:' + d.key, wildKey: d.key, type: 'wild', idx: start + k, name: d.head.join(' '), tier: 'k' }));
+  }
+
   matches(p, cat) {
     switch (cat.type) {
       case 'club': return p.clubs.includes(cat.idx);
@@ -111,7 +142,7 @@ export class FootballDB {
       case 'pos': return ((p.pos >> cat.idx) & 1) === 1;
       case 'cup': return p.cups.includes(cat.idx);
       case 'mgr': return p.mgrs.includes(cat.idx);
-      case 'wild': return p.wild.includes(cat.idx);
+      case 'wild': return cat.test ? cat.test(p) : p.wild.includes(cat.idx);
       default: return false;
     }
   }
@@ -157,6 +188,10 @@ export class FootballDB {
     return out;
   }
 
+  natNames(p) {
+    return p.nats.map((i) => this.byType.nat[i]?.name).filter(Boolean);
+  }
+
   /** Yanlış cevapta hangi şartın tutmadığını anlatan cümle parçası. */
   failText(cat) {
     if (cat.fail) return cat.fail;
@@ -171,6 +206,7 @@ export class FootballDB {
 
   /** Izgara başlığı: [kalın ad, fiil]. Kulüpte fiil yok (kulüpte oynamak zaten açık). */
   headOf(cat) {
+    if (cat.head) return cat.head;
     switch (cat.type) {
       case 'nat': return [cat.name, 'uyruklu'];
       case 'lg': return [cat.loc, 'oynadı'];
@@ -191,6 +227,33 @@ export class FootballDB {
     if (cat.colors) o.colors = cat.colors;
     if (cat.flag) o.flag = cat.flag;
     return o;
+  }
+
+  /** Oyuncu kartı: kulüpleri (yıllarıyla), uyruk, mevki, kupalar, hocalar, özellikler. */
+  card(fid) {
+    const p = this.players[fid];
+    if (!p) return null;
+    const T = this.byType;
+    const label = (c) => this.headOf(c).filter(Boolean).join(' ');
+    const years = p.st && p.st.length ? p.st : p.clubs.map((ci) => [ci, null, null]);
+    return {
+      id: p.i,
+      name: p.name,
+      by: p.by,
+      qid: p.qid,
+      nats: p.nats.map((i) => T.nat[i]).filter(Boolean).map((c) => ({ name: c.name, flag: c.flag })),
+      pos: (T.pos || []).filter((c) => c && this.matches(p, c)).map((c) => c.name),
+      clubs: years
+        .map(([ci, from, to]) => {
+          const c = T.club[ci];
+          return c && { name: c.name, short: c.short, colors: c.colors, from, to };
+        })
+        .filter(Boolean),
+      leagues: p.leagues.map((i) => T.lg[i]?.name).filter(Boolean),
+      cups: p.cups.map((i) => T.cup?.[i]).filter(Boolean).map(label),
+      mgrs: p.mgrs.map((i) => T.mgr?.[i]?.name).filter(Boolean),
+      wild: (T.wild || []).filter((c) => c && this.matches(p, c)).map(label),
+    };
   }
 
   buildSearch() {

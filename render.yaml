@@ -1,14 +1,19 @@
-# Render.com'da kalıcı adres için (isteğe bağlı). Repoyu Render'a bağla → bu dosya okunur.
-# Ücretsiz katman 15 dk boşta kalınca uyur; ilk açılış ~30 sn sürer. Odalar bellekte tutulduğu için
-# sunucu uyuyunca açık odalar kapanır.
+# Render.com'da kalıcı adres (telefondan, bilgisayar açık olmadan oynamak için).
+# README'deki "Deploy to Render" düğmesi bu dosyayı okur. Ücretsiz katman 15 dk boşta kalınca uyur;
+# ilk açılış ~30-60 sn sürer. Odalar bellekte tutulduğu için sunucu uyuyunca açık odalar kapanır.
+# Sunucu ~170 MB bellek kullanır (ücretsiz sınır 512 MB).
 services:
   - type: web
     name: footballgrid
     runtime: node
     plan: free
-    buildCommand: npm install
-    startCommand: npm start
+    region: frankfurt
+    buildCommand: npm install --omit=dev
+    startCommand: node --max-old-space-size=400 server/index.js
     healthCheckPath: /healthz
+    autoDeploy: true
     envVars:
       - key: TRUST_PROXY
         value: "1"
+      - key: NODE_VERSION
+        value: "22"

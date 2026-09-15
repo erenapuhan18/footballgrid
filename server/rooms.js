@@ -9,7 +9,7 @@ import { makeCode, normalizeCode } from './codes.js';
 import { validateNick, sameNick, suggestNick } from './nickname.js';
 import { Game, gameShape } from './game.js';
 import { makeGrid } from './grid.js';
-import { playBotTurn, pickBotName } from './bots.js';
+import { playBotTurn, runRaceBot, pickBotName } from './bots.js';
 
 export const COLORS = ['blue', 'red', 'green', 'yellow'];
 export const SETTINGS = {
@@ -17,9 +17,13 @@ export const SETTINGS = {
   mode: ['klasik', 'hizli', 'uzman'],
   turnTime: [15, 30, 45, 60],
   win: ['line3', 'most'],
+  style: ['turn', 'race'],
+  matchTime: [60, 120, 180, 300],
 };
-/** Hızlı maç: 3 kişide 3'leme, 4 kişide en çok hücre. */
-export const quickSettings = (size) => ({ capacity: size, mode: 'klasik', turnTime: 30, win: size === 4 ? 'most' : 'line3' });
+/** Hızlı maç: sırayla, 3 kişide 3'leme, 4 kişide en çok hücre, ipucu açık, aynı futbolcu bir kez. */
+export const quickSettings = (size) => ({
+  capacity: size, mode: 'klasik', turnTime: 30, win: size === 4 ? 'most' : 'line3', style: 'turn', matchTime: 180, hints: true, reuse: false,
+});
 
 const LOBBY_GRACE_MS = 45_000; // lobide bağlantısı kopan oyuncu bu süre sonunda odadan çıkar
 const GAME_GRACE_MS = 90_000; // maç sırasında
@@ -45,6 +49,10 @@ function normSettings(s = {}) {
     turnTime: num(s.turnTime, SETTINGS.turnTime, 30),
     // 2 kişide kural hep 3'leme; 3 kişide varsayılan 3'leme, 4 kişide en çok hücre
     win: capacity === 2 ? 'line3' : SETTINGS.win.includes(s.win) ? s.win : capacity === 3 ? 'line3' : 'most',
+    style: SETTINGS.style.includes(s.style) ? s.style : 'turn',
+    matchTime: num(s.matchTime, SETTINGS.matchTime, 180),
+    hints: s.hints === undefined ? true : s.hints === true || s.hints === 'true',
+    reuse: s.reuse === true || s.reuse === 'true',
   };
 }
 
@@ -92,6 +100,8 @@ class Room {
   stopBots() {
     this.botCancel?.();
     this.botCancel = null;
+    for (const stop of this.raceBots || []) stop();
+    this.raceBots = [];
   }
 
   onTurn(turn) {
@@ -226,10 +236,10 @@ export class RoomManager {
     return m;
   }
 
-  create(session, { nick, capacity, mode, turnTime, win } = {}) {
-    const v = validateNick(nick);
+  create(session, opts = {}) {
+    const v = validateNick(opts.nick);
     if (!v.ok) throw new RoomError('invalid_nick', v.error);
-    const settings = normSettings({ capacity, mode, turnTime, win });
+    const settings = normSettings(opts);
     this.detach(session);
     const code = makeCode((c) => this.rooms.has(c) || this.closed.has(c));
     const room = new Room(this, code, settings, false);
@@ -380,6 +390,30 @@ export class RoomManager {
     this.removeMember(room, pid, 'kicked');
   }
 
+  /** Host maçtan önce (lobide ya da maç bitince) oda ayarlarını değiştirir. */
+  updateSettings(session, patch = {}) {
+    const room = this.requireHost(session);
+    if (room.status !== 'lobby' && room.status !== 'finished') throw new RoomError('bad_state', 'Ayarlar maç sürerken değiştirilemez.');
+    const next = normSettings({ ...room.settings, ...patch });
+    if (next.capacity < room.members.length) {
+      throw new RoomError('bad_capacity', `Odada ${room.members.length} oyuncu var; kapasite bundan az olamaz.`);
+    }
+    room.settings = next;
+    room.touch();
+    this.event(room, { kind: 'settings' });
+    room.broadcast();
+    return next;
+  }
+
+  /** Oyuncu kartı yalnızca maç bitince açılır (maç sırasında cevap ipucu olmasın). */
+  card(session, fid) {
+    const room = this.mine(session);
+    if (!room.game?.over) throw new RoomError('bad_state', 'Oyuncu kartları maç bitince açılır.');
+    const card = Number.isInteger(fid) ? this.db.card(fid) : null;
+    if (!card) throw new RoomError('bad_target', 'Futbolcu bulunamadı.');
+    return card;
+  }
+
   startCountdown(room) {
     clearTimeout(room.countdownTimer);
     room.status = 'countdown';
@@ -417,7 +451,11 @@ export class RoomManager {
       return room.broadcast();
     }
     room.lastGrid = new Set([...grid.rows, ...grid.cols].map((c) => c.key));
-    const game = new Game({ db: this.db, mode: room.settings.mode, turnTime: room.settings.turnTime, win: room.settings.win, players, grid });
+    const st = room.settings;
+    const game = new Game({
+      db: this.db, mode: st.mode, turnTime: st.turnTime, win: st.win, style: st.style, matchTime: st.matchTime,
+      hints: st.hints, reuse: st.reuse, players, grid,
+    });
     room.game = game;
     room.round++;
     room.status = 'playing';
@@ -425,6 +463,9 @@ export class RoomManager {
     game.on('change', () => room.broadcast());
     game.on('log', (entry) => this.event(room, { kind: 'log', entry }));
     game.on('turn', (turn) => room.onTurn(turn));
+    game.on('race', () => {
+      room.raceBots = room.members.filter((m) => m.bot).map((m) => runRaceBot(game, m.pid));
+    });
     game.on('end', () => {
       room.status = 'finished';
       room.stopBots();

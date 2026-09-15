@@ -334,6 +334,30 @@ export function catChip(cat) {
   return h('span', { class: `catchip t-${cat.type}` }, catIcon(cat, 20), h('span', {}, cat.desc || cat.name));
 }
 
+/** Oyuncu kartı: kulüpleri (yıllarıyla), uyruk, mevki, kupalar, hocalar, özellikler. */
+export function playerCard(card) {
+  const years = (c) => (c.from === null || c.from === undefined ? '' : `${c.from}–${c.to === 0 ? 'bugün' : c.to ?? '?'}`);
+  const section = (title, body) => h('div', { class: 'pc-sec' }, h('p', { class: 'label' }, title), body);
+  const meta = [card.by ? `${card.by} doğumlu` : null, card.pos?.length ? card.pos.join(', ') : null].filter(Boolean).join(' · ');
+  return h(
+    'div',
+    { class: 'pcard' },
+    h('div', { class: 'pc-head' },
+      h('div', { class: 'pc-flags' }, card.nats.map((n) => h('span', { class: 'pc-nat' }, flag(n.flag, 24), n.name))),
+      meta ? h('p', { class: 'pc-meta' }, meta) : null),
+    card.clubs.length
+      ? section('KULÜPLERİ (OYUNDAKİLER)', h('ul', { class: 'pc-clubs' }, card.clubs.map((c) =>
+          h('li', {}, crest(c, 22), h('span', { class: 'nm' }, c.name), h('span', { class: 'yr' }, years(c))))))
+      : null,
+    card.cups.length ? section('KUPALARI', h('div', { class: 'pc-tags' }, card.cups.map((x) => h('span', { class: 'pc-tag cup' }, '🏆 ', x)))) : null,
+    card.mgrs.length ? section('ÇALIŞTIĞI HOCALAR', h('p', { class: 'pc-list' }, card.mgrs.slice(0, 12).join(' · '))) : null,
+    card.wild.length ? section('ÖZELLİKLERİ', h('div', { class: 'pc-tags' }, card.wild.map((x) => h('span', { class: 'pc-tag' }, x)))) : null,
+    card.qid
+      ? h('a', { class: 'pc-src', href: `https://www.wikidata.org/wiki/${card.qid}`, target: '_blank', rel: 'noopener noreferrer' }, 'Kaynak: Wikidata ↗')
+      : h('p', { class: 'hint' }, 'Kaynak: 2026-27 güncel kadro verisi'),
+  );
+}
+
 /** Logodaki 3×3 ızgara işareti. */
 export function gridGlyph(px = 40) {
   const fill = { 0: COLOR_HEX.blue, 4: COLOR_HEX.red, 8: COLOR_HEX.blue, 5: COLOR_HEX.yellow };

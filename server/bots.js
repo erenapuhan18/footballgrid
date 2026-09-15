@@ -1,5 +1,6 @@
 /* Botlar: host lobide ekler ya da eşleştirmede rakip bulunamazsa koltukları doldurur.
-   Önce hücreyi seçer (herkes görsün), biraz "düşünür", sonra cevaplar ya da pas geçer. */
+   Sırayla modunda: önce hücreyi seçer (herkes görsün), biraz "düşünür", sonra cevaplar ya da pas geçer.
+   Aynı anda modunda: birkaç saniyede bir boş bir hücreye cevap dener; yanlışta cezayı bekler. */
 
 import { sameNick } from './nickname.js';
 
@@ -19,7 +20,7 @@ function chooseCell(game, pid, rng) {
   if (!takeable.length) return null;
   const answerable = takeable.filter((i) => {
     const [r, c] = game.catsOf(i);
-    return game.db.answers(r, c, 1, game.used).length > 0;
+    return game.db.answers(r, c, 1, game.excluded).length > 0;
   });
   let pool = answerable.length ? answerable : takeable;
   // Uzman'da çoğunlukla boş hücre, arada bir çalma
@@ -38,7 +39,28 @@ function chooseCell(game, pid, rng) {
   return pool[Math.floor(rng() * pool.length)];
 }
 
-/** Botun sırasını oynar; iptal fonksiyonu döner (sıra değişince/oda kapanınca çağrılır). */
+/** Doğru ya da makul bir yanlış cevap verir; hiçbiri yoksa false döner. */
+function attempt(game, pid, cell, rng) {
+  const [row, col] = game.catsOf(cell);
+  if (rng() < (SKILL[game.mode] ?? 0.65)) {
+    const opts = game.db.answers(row, col, 12, game.excluded).filter((p) => p.i !== game.cells[cell].fid);
+    if (opts.length) {
+      game.answer(pid, cell, opts[Math.floor(rng() ** 1.6 * opts.length)].i);
+      return true;
+    }
+  }
+  if (rng() < 0.55) {
+    // makul bir yanlış: satır şartına uyan ama sütuna uymayan tanınmış biri
+    const wrong = game.db.answers(row, row, 40, game.used).filter((p) => !game.db.matches(p, col));
+    if (wrong.length) {
+      game.answer(pid, cell, wrong[Math.floor(rng() * wrong.length)].i);
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Sırayla modunda botun sırasını oynar; iptal fonksiyonu döner. */
 export function playBotTurn(game, pid, rng = Math.random) {
   const no = game.turn.no;
   const alive = () => !game.over && game.turn && game.turn.no === no;
@@ -50,19 +72,26 @@ export function playBotTurn(game, pid, rng = Math.random) {
     }, Math.min(700 + rng() * 900, think * 0.45)),
     setTimeout(() => {
       if (!alive()) return;
-      if (cell === null) return void game.pass(pid);
-      const [row, col] = game.catsOf(cell);
-      if (rng() < (SKILL[game.mode] ?? 0.65)) {
-        const opts = game.db.answers(row, col, 12, game.used);
-        if (opts.length) return void game.answer(pid, cell, opts[Math.floor(rng() ** 1.6 * opts.length)].i);
-      }
-      if (rng() < 0.55) {
-        // makul bir yanlış: satır şartına uyan ama sütuna uymayan tanınmış biri
-        const wrong = game.db.answers(row, row, 40, game.used).filter((p) => !game.db.matches(p, col));
-        if (wrong.length) return void game.answer(pid, cell, wrong[Math.floor(rng() * wrong.length)].i);
-      }
-      game.pass(pid);
+      if (cell === null || !attempt(game, pid, cell, rng)) game.pass(pid);
     }, think),
   ];
   return () => timers.forEach(clearTimeout);
+}
+
+/** Aynı anda modunda botu maç bitene kadar oynatır; iptal fonksiyonu döner. */
+export function runRaceBot(game, pid, rng = Math.random) {
+  let timer = null;
+  const loop = () => {
+    timer = setTimeout(() => {
+      if (game.over) return;
+      const me = game.players.get(pid);
+      if (me && !me.left && me.cooldownUntil <= Date.now()) {
+        const cell = chooseCell(game, pid, rng);
+        if (cell !== null) attempt(game, pid, cell, rng);
+      }
+      if (!game.over) loop();
+    }, 3500 + rng() * 6500);
+  };
+  loop();
+  return () => clearTimeout(timer);
 }
