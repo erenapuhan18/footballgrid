@@ -1,0 +1,203 @@
+/* Futbolcu veritabanı: kategoriler, bit kümeleri (hücre başına cevap sayımı) ve isim araması.
+   Kategori türleri: club · nat (uyruk) · lg (lig) · pos (mevki) · cup (kupa) · mgr (menajer) · wild (joker) */
+
+import { readFileSync } from 'node:fs';
+import { fold, locative } from './text.js';
+
+// Otomatik ek kuralının okunuşla tutmadığı kulüpler.
+const LOC_OVERRIDE = {
+  mun: "Manchester United'da",
+  new: "Newcastle'da",
+  lei: "Leicester'da",
+  lee: "Leeds United'da",
+  fcgb: "Bordeaux'da",
+  srfc: "Rennes'de",
+  ogcn: "Nice'te",
+  cel: "Celtic'te",
+  ran: "Rangers'ta",
+  lag: "LA Galaxy'de",
+  riv: "River Plate'te",
+  gb: "Gençlerbirliği'nde",
+  agu: "Ankaragücü'nde",
+};
+
+// Klasik modda da görünen büyük ligler (diğerleri yalnızca Uzman)
+const BIG_LEAGUES = new Set(['tr1', 'eng', 'esp', 'ita', 'ger', 'fra']);
+
+// Wikidata'da futbolcu + kulüp üyesi diye işaretlenmiş ama futbolcu olmayan kayıtlar.
+const DENY = new Set([
+  'Q169963', // Jason Statham (aktör) — "Manchester United × İngiltere" cevabı olarak çıkıyordu
+]);
+
+function popcount(x) {
+  x -= (x >>> 1) & 0x55555555;
+  x = (x & 0x33333333) + ((x >>> 2) & 0x33333333);
+  return (((x + (x >>> 4)) & 0x0f0f0f0f) * 0x01010101) >>> 24;
+}
+
+const tokens = (s) => fold(s).split(/[^a-z0-9]+/).filter(Boolean);
+
+export class FootballDB {
+  constructor(file) {
+    const raw = JSON.parse(readFileSync(file, 'utf8'));
+    this.builtAt = raw.enrichedAt || raw.builtAt;
+    this.source = raw.source;
+    this.players = raw.players
+      .filter((p) => !DENY.has(p[8]))
+      .map(([name, by, sl, clubs, nats, leagues, pos, aliases, qid, cups, mgrs, wild], i) => ({
+        i, name, by, sl, clubs, nats, leagues, pos, qid,
+        aliases: aliases || [], cups: cups || [], mgrs: mgrs || [], wild: wild || [],
+      }));
+    // dosyada sitelink sayısına göre azalan sıralı → düşük indeks = daha tanınmış
+
+    this.cats = [
+      ...raw.clubs.map((c, idx) => ({
+        key: 'club:' + c.key, type: 'club', idx, name: c.name, short: c.short, colors: c.colors,
+        tier: c.tier, nation: c.nation, league: c.league, clubKey: c.key,
+        loc: LOC_OVERRIDE[c.key] || locative(c.name),
+      })),
+      ...raw.nations.map((n, idx) => ({ key: 'nat:' + n.key, type: 'nat', idx, name: n.name, flag: n.flag, tier: n.tier, natKey: n.key })),
+      ...raw.leagues.map((l, idx) => ({
+        key: 'lg:' + l.key, type: 'lg', idx, name: l.name, short: l.short, tier: BIG_LEAGUES.has(l.key) ? 'k' : 'u', lgKey: l.key, loc: locative(l.name),
+      })),
+      ...raw.positions.map((p, idx) => ({ key: 'pos:' + p.key, type: 'pos', idx, name: p.name, tier: 'u' })),
+      ...(raw.cups || []).map((c, idx) => ({ key: 'cup:' + c.key, type: 'cup', idx, name: c.name, short: c.short, tier: c.tier, desc: c.desc, fail: c.fail, cupKey: c.key })),
+      ...(raw.managers || []).map((m, idx) => ({
+        key: 'mgr:' + m.key, type: 'mgr', idx, name: m.name, tier: m.tier, desc: `${m.name} ile çalışmış`, fail: `${m.name} ile çalışmadı`,
+      })),
+      ...(raw.wilds || []).map((w, idx) => ({ key: 'wild:' + w.key, type: 'wild', idx, name: w.name, tier: w.tier, desc: w.desc, fail: w.fail, wildKey: w.key })),
+    ];
+    this.catByKey = new Map(this.cats.map((c) => [c.key, c]));
+
+    const N = this.players.length;
+    this.words = Math.ceil(N / 32);
+    this.pairs = new Map(); // çift sayımı önbelleği — ızgara üretici aynı çiftleri defalarca sorar
+    for (const cat of this.cats) {
+      const bits = new Uint32Array(this.words);
+      for (const p of this.players) if (this.matches(p, cat)) bits[p.i >>> 5] |= 1 << (p.i & 31);
+      cat.bits = bits;
+      cat.size = this.count(cat, cat, N);
+    }
+    this.buildSearch();
+  }
+
+  matches(p, cat) {
+    switch (cat.type) {
+      case 'club': return p.clubs.includes(cat.idx);
+      case 'nat': return p.nats.includes(cat.idx);
+      case 'lg': return p.leagues.includes(cat.idx);
+      case 'pos': return ((p.pos >> cat.idx) & 1) === 1;
+      case 'cup': return p.cups.includes(cat.idx);
+      case 'mgr': return p.mgrs.includes(cat.idx);
+      case 'wild': return p.wild.includes(cat.idx);
+      default: return false;
+    }
+  }
+
+  /** İlk `limit` futbolcu (en tanınmışlar) içinde iki kategoriye birden uyanların sayısı. */
+  count(a, b, limit = this.players.length) {
+    const key = a.key < b.key ? `${a.key}|${b.key}|${limit}` : `${b.key}|${a.key}|${limit}`;
+    const hit = this.pairs.get(key);
+    if (hit !== undefined) return hit;
+    const full = limit >>> 5;
+    let n = 0;
+    for (let w = 0; w < full; w++) n += popcount(a.bits[w] & b.bits[w]);
+    const rest = limit & 31;
+    if (rest) n += popcount(a.bits[full] & b.bits[full] & ((1 << rest) - 1));
+    this.pairs.set(key, n);
+    return n;
+  }
+
+  /** sitelink ≥ minSl olan futbolcuların indeks sınırı (dizi azalan sıralı). */
+  knownLimit(minSl) {
+    let lo = 0;
+    let hi = this.players.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (this.players[mid].sl >= minSl) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  }
+
+  /** İki kategoriye uyan futbolcular, tanınmışlıktan aşağı. */
+  answers(a, b, max = 5, exclude = null) {
+    const out = [];
+    for (let w = 0; w < this.words && out.length < max; w++) {
+      let x = a.bits[w] & b.bits[w];
+      while (x && out.length < max) {
+        const bit = 31 - Math.clz32(x & -x);
+        x &= x - 1;
+        const i = (w << 5) + bit;
+        if (!exclude || !exclude.has(i)) out.push(this.players[i]);
+      }
+    }
+    return out;
+  }
+
+  /** Yanlış cevapta hangi şartın tutmadığını anlatan cümle parçası. */
+  failText(cat) {
+    if (cat.fail) return cat.fail;
+    switch (cat.type) {
+      case 'club': return `${cat.loc} oynamadı`;
+      case 'lg': return `${cat.loc} oynamadı`;
+      case 'nat': return `${cat.name} uyruklu değil`;
+      case 'pos': return `${cat.name.toLocaleLowerCase('tr')} değil`;
+      default: return 'şart tutmuyor';
+    }
+  }
+
+  /** İstemciye giden başlık bilgisi. */
+  publicCat(cat) {
+    const desc =
+      cat.desc ||
+      (cat.type === 'club' || cat.type === 'lg' ? `${cat.loc} oynamış` : cat.type === 'nat' ? `${cat.name} uyruklu` : `Mevki: ${cat.name}`);
+    const o = { key: cat.key, type: cat.type, name: cat.name, desc };
+    if (cat.short) o.short = cat.short;
+    if (cat.colors) o.colors = cat.colors;
+    if (cat.flag) o.flag = cat.flag;
+    return o;
+  }
+
+  buildSearch() {
+    this.variants = []; // [{i, text, toks, alias}]
+    this.buckets = new Map(); // ilk iki harf → varyant indeksleri (tanınmışlık sırasıyla)
+    for (const p of this.players) {
+      for (const [text, alias] of [[p.name, false], ...p.aliases.map((a) => [a, true])]) {
+        const toks = tokens(text);
+        if (!toks.length) continue;
+        const v = this.variants.length;
+        this.variants.push({ i: p.i, text, toks, full: toks.join(' '), alias });
+        for (const k of new Set(toks.map((t) => t.slice(0, 2)))) {
+          (this.buckets.get(k) || this.buckets.set(k, []).get(k)).push(v);
+        }
+      }
+    }
+  }
+
+  /** Otomatik tamamlama: her sorgu kelimesi ismin bir kelimesinin başı olmalı. */
+  search(q, limit = 8) {
+    const qt = tokens(String(q).slice(0, 48));
+    if (!qt.length || qt.join('').length < 2) return [];
+    const pivot = qt.reduce((a, b) => (b.length > a.length ? b : a));
+    if (pivot.length < 2) return [];
+    const bucket = this.buckets.get(pivot.slice(0, 2)) || [];
+    const qFull = qt.join(' ');
+    const seen = new Set();
+    const hits = [];
+    for (const v of bucket) {
+      const va = this.variants[v];
+      if (seen.has(va.i)) continue;
+      if (!qt.every((t) => va.toks.some((x) => x.startsWith(t)))) continue;
+      seen.add(va.i);
+      const rank = va.full === qFull ? 0 : va.full.startsWith(qFull) ? 1 : 2;
+      hits.push({ va, rank });
+      if (hits.length >= 80) break;
+    }
+    hits.sort((a, b) => a.rank - b.rank || a.va.i - b.va.i);
+    return hits.slice(0, limit).map(({ va }) => {
+      const p = this.players[va.i];
+      return { id: p.i, name: p.name, by: p.by, alias: va.alias ? va.text : undefined };
+    });
+  }
+}

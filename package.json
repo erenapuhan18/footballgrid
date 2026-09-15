@@ -1,0 +1,23 @@
+{
+  "name": "footballgrid",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FOOTBALLGRID — hesapsız, oda kodlu çok oyunculu futbol bilgi ızgarası",
+  "type": "module",
+  "main": "server/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "public": "node tools/public.mjs",
+    "test": "node --test \"test/*.test.mjs\"",
+    "data:resolve": "node tools/build-data.mjs --resolve",
+    "data:build": "node tools/build-data.mjs --build",
+    "data:enrich": "node --max-old-space-size=1200 tools/enrich.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

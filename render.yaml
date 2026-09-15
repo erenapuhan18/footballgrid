@@ -1,0 +1,14 @@
+# Render.com'da kalıcı adres için (isteğe bağlı). Repoyu Render'a bağla → bu dosya okunur.
+# Ücretsiz katman 15 dk boşta kalınca uyur; ilk açılış ~30 sn sürer. Odalar bellekte tutulduğu için
+# sunucu uyuyunca açık odalar kapanır.
+services:
+  - type: web
+    name: footballgrid
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: TRUST_PROXY
+        value: "1"

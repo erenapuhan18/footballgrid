@@ -1,0 +1,7 @@
+node_modules/
+tools/.cache/
+tools/bin/
+tools/*.log
+_shots/
+server/data/db.base.json
+*.log

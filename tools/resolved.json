@@ -1,0 +1,1395 @@
+{
+  "clubs": {
+    "gs": {
+      "qid": "Q495299",
+      "label": "Galatasaray S.K.",
+      "desc": "Turkish association football team",
+      "manual": true
+    },
+    "bjk": {
+      "qid": "Q172567",
+      "label": "Beşiktaş J.K.",
+      "desc": "Turkish association football club based in Istanbul",
+      "manual": true
+    },
+    "ts": {
+      "qid": "Q192641",
+      "label": "Trabzonspor",
+      "desc": "Turkish association football club",
+      "manual": true
+    },
+    "ibfk": {
+      "qid": "Q857938",
+      "label": "İstanbul Başakşehir F.K.",
+      "desc": "Turkish association football club",
+      "manual": true
+    },
+    "bursa": {
+      "qid": "Q203573",
+      "label": "Bursaspor",
+      "desc": "professional association football club based in Turkey",
+      "manual": true
+    },
+    "ant": {
+      "qid": "Q43710",
+      "label": "Antalyaspor",
+      "desc": "Turkish association football club",
+      "manual": true
+    },
+    "kay": {
+      "qid": "Q608122",
+      "label": "Kayserispor",
+      "desc": "professional association football club based in Turkey",
+      "manual": true
+    },
+    "siv": {
+      "qid": "Q372599",
+      "label": "Sivasspor",
+      "desc": "Turkish professional football club",
+      "manual": true
+    },
+    "gb": {
+      "qid": "Q641373",
+      "label": "Gençlerbirliği S.K.",
+      "desc": "Turkish association football club",
+      "manual": true
+    },
+    "sam": {
+      "qid": "Q430107",
+      "label": "Samsunspor FC",
+      "desc": "professional association football club based in Turkey",
+      "manual": true
+    },
+    "kas": {
+      "qid": "Q138230",
+      "label": "Kasımpaşa S.K.",
+      "desc": "Turkish association football club",
+      "manual": true
+    },
+    "es": {
+      "qid": "Q748445",
+      "label": "Eskişehirspor",
+      "desc": "professional association football club based in Turkey",
+      "manual": true
+    },
+    "mun": {
+      "qid": "Q18656",
+      "label": "Manchester United F.C.",
+      "desc": "association football club in Manchester, England",
+      "manual": true
+    },
+    "mci": {
+      "qid": "Q50602",
+      "label": "Manchester City F.C.",
+      "desc": "association football club in Manchester, England",
+      "manual": true
+    },
+    "liv": {
+      "qid": "Q1130849",
+      "label": "Liverpool F.C.",
+      "desc": "association football club in Liverpool, England",
+      "manual": true
+    },
+    "che": {
+      "qid": "Q9616",
+      "label": "Chelsea F.C.",
+      "desc": "association football club in London, England",
+      "manual": true
+    },
+    "ars": {
+      "qid": "Q9617",
+      "label": "Arsenal F.C.",
+      "desc": "association football club in London, England",
+      "manual": true
+    },
+    "tot": {
+      "qid": "Q18741",
+      "label": "Tottenham Hotspur F.C.",
+      "desc": "association football club in London, England",
+      "manual": true
+    },
+    "eve": {
+      "qid": "Q5794",
+      "label": "Everton F.C.",
+      "desc": "association football club in Liverpool, England",
+      "manual": true
+    },
+    "new": {
+      "qid": "Q18716",
+      "label": "Newcastle United F.C.",
+      "desc": "association football club in Newcastle upon Tyne, England",
+      "manual": true
+    },
+    "avl": {
+      "qid": "Q18711",
+      "label": "Aston Villa F.C.",
+      "desc": "association football club in Birmingham, England",
+      "manual": true
+    },
+    "whu": {
+      "qid": "Q18747",
+      "label": "West Ham United F.C.",
+      "desc": "association football club in London, England",
+      "manual": true
+    },
+    "lei": {
+      "qid": "Q19481",
+      "label": "Leicester City F.C.",
+      "desc": "association football club in Leicester, England",
+      "manual": true
+    },
+    "lee": {
+      "qid": "Q1128631",
+      "label": "Leeds United F.C.",
+      "desc": "association football club in Leeds, England",
+      "manual": true
+    },
+    "sou": {
+      "qid": "Q18732",
+      "label": "Southampton F.C.",
+      "desc": "association football club in Southampton, England",
+      "manual": true
+    },
+    "rma": {
+      "qid": "Q8682",
+      "label": "Real Madrid Club de Fútbol",
+      "desc": "association football club in Madrid, Spain",
+      "manual": true
+    },
+    "bar": {
+      "qid": "Q7156",
+      "label": "FC Barcelona",
+      "desc": "football club in Barcelona, Catalonia, Spain",
+      "manual": true
+    },
+    "atm": {
+      "qid": "Q8701",
+      "label": "Atlético Madrid",
+      "desc": "Spanish professional football club in Madrid",
+      "manual": true
+    },
+    "sev": {
+      "qid": "Q10329",
+      "label": "Sevilla FC",
+      "desc": "Spanish professional football club based in Seville",
+      "manual": true
+    },
+    "val": {
+      "qid": "Q10333",
+      "label": "Valencia CF",
+      "desc": "association football club in Valencia, Spain",
+      "manual": true
+    },
+    "vil": {
+      "qid": "Q12297",
+      "label": "Villarreal CF",
+      "desc": "association football club in Villarreal, Spain",
+      "manual": true
+    },
+    "bet": {
+      "qid": "Q8723",
+      "label": "Real Betis Balompié",
+      "desc": "Spanish professional football club",
+      "manual": true
+    },
+    "ath": {
+      "qid": "Q8687",
+      "label": "Athletic Club",
+      "desc": "Spanish association football team from Bilbao, Spain",
+      "manual": true
+    },
+    "rso": {
+      "qid": "Q10315",
+      "label": "Real Sociedad",
+      "desc": "association football club in San Sebastián, Spain",
+      "manual": true
+    },
+    "dep": {
+      "qid": "Q8760",
+      "label": "Deportivo de A Coruña",
+      "desc": "Spanish association football club",
+      "manual": true
+    },
+    "juv": {
+      "qid": "Q1422",
+      "label": "Juventus FC",
+      "desc": "association football club in Turin, Italy",
+      "manual": true
+    },
+    "mil": {
+      "qid": "Q1543",
+      "label": "AC Milan",
+      "desc": "football club in Milan, Italy",
+      "manual": true
+    },
+    "int": {
+      "qid": "Q631",
+      "label": "Inter Milan",
+      "desc": "association football club based in Milan, Lombardy, Italy",
+      "manual": true
+    },
+    "rom": {
+      "qid": "Q2739",
+      "label": "AS Roma",
+      "desc": "association football club in Rome, Italy",
+      "manual": true
+    },
+    "nap": {
+      "qid": "Q2641",
+      "label": "SSC Napoli",
+      "desc": "Italian professional football club based in Naples",
+      "manual": true
+    },
+    "laz": {
+      "qid": "Q2609",
+      "label": "SS Lazio",
+      "desc": "football section of the sports club based in Rome, Lazio, Italy",
+      "manual": true
+    },
+    "fio": {
+      "qid": "Q2052",
+      "label": "ACF Fiorentina",
+      "desc": "association football club in Florence, Italy",
+      "manual": true
+    },
+    "ata": {
+      "qid": "Q1886",
+      "label": "Atalanta BC",
+      "desc": "association football club in Bergamo, Italy",
+      "manual": true
+    },
+    "prm": {
+      "qid": "Q2693",
+      "label": "Parma Calcio 1913",
+      "desc": "Italian professional football club based in Parma, Emilia-Romagna",
+      "manual": true
+    },
+    "samp": {
+      "qid": "Q1457",
+      "label": "U.C. Sampdoria",
+      "desc": "association football club based in Genoa, Italy",
+      "manual": true
+    },
+    "udi": {
+      "qid": "Q2798",
+      "label": "Udinese Calcio",
+      "desc": "Italian association football club based in Udine, Italy",
+      "manual": true
+    },
+    "tor": {
+      "qid": "Q2768",
+      "label": "Torino FC",
+      "desc": "Italian football club based in Turin, Piedmont",
+      "manual": true
+    },
+    "bay": {
+      "qid": "Q15789",
+      "label": "FC Bayern Munich",
+      "desc": "association football club in Munich, Germany",
+      "manual": true
+    },
+    "b04": {
+      "qid": "Q104761",
+      "label": "Bayer 04 Leverkusen",
+      "desc": "association football club in Leverkusen, Germany",
+      "manual": true
+    },
+    "s04": {
+      "qid": "Q32494",
+      "label": "Schalke 04",
+      "desc": "German football club from the Schalke district of Gelsenkirchen",
+      "manual": true
+    },
+    "wob": {
+      "qid": "Q101859",
+      "label": "VfL Wolfsburg",
+      "desc": "association football club from Wolfsburg, Lower Saxony, Germany",
+      "manual": true
+    },
+    "vfb": {
+      "qid": "Q4512",
+      "label": "VfB Stuttgart",
+      "desc": "German football team based in the city of Stuttgart, founded in 1893",
+      "manual": true
+    },
+    "svw": {
+      "qid": "Q51976",
+      "label": "SV Werder Bremen",
+      "desc": "association football club in Bremen, Germany",
+      "manual": true
+    },
+    "bmg": {
+      "qid": "Q101959",
+      "label": "Borussia Mönchengladbach",
+      "desc": "professional association football club in Mönchengladbach, North Rhine-Westphalia, Germany",
+      "manual": true
+    },
+    "rbl": {
+      "qid": "Q702455",
+      "label": "RB Leipzig",
+      "desc": "association football club in Leipzig, Saxony, Germany",
+      "manual": true
+    },
+    "psg": {
+      "qid": "Q483020",
+      "label": "Paris Saint-Germain FC",
+      "desc": "association football club in Paris, France having two UCL",
+      "manual": true
+    },
+    "om": {
+      "qid": "Q132885",
+      "label": "Olympique de Marseille",
+      "desc": "association football club in Marseille, France",
+      "manual": true
+    },
+    "ol": {
+      "qid": "Q704",
+      "label": "Olympique Lyonnais",
+      "desc": "association football club in Lyon, France",
+      "manual": true
+    },
+    "asm": {
+      "qid": "Q180305",
+      "label": "AS Monaco FC",
+      "desc": "association football club in Monaco",
+      "manual": true
+    },
+    "losc": {
+      "qid": "Q19516",
+      "label": "Lille OSC",
+      "desc": "association football club in Lille, France",
+      "manual": true
+    },
+    "fcgb": {
+      "qid": "Q172476",
+      "label": "FC Girondins de Bordeaux",
+      "desc": "association football club in Bordeaux, France",
+      "manual": true
+    },
+    "srfc": {
+      "qid": "Q19509",
+      "label": "Stade Rennais F.C.",
+      "desc": "French association football club",
+      "manual": true
+    },
+    "asse": {
+      "qid": "Q19521",
+      "label": "AS Saint-Étienne",
+      "desc": "association football club in Saint-Étienne, France",
+      "manual": true
+    },
+    "ogcn": {
+      "qid": "Q185163",
+      "label": "OGC Nice",
+      "desc": "association football club in France",
+      "manual": true
+    },
+    "slb": {
+      "qid": "Q131499",
+      "label": "S.L. Benfica",
+      "desc": "professional association football club based in Lisbon, Portugal",
+      "manual": true
+    },
+    "fcp": {
+      "qid": "Q128446",
+      "label": "FC Porto",
+      "desc": "professional association football club based in Porto, Portugal",
+      "manual": true
+    },
+    "scb": {
+      "qid": "Q75684",
+      "label": "S.C. Braga",
+      "desc": "professional association football club based in Braga, Portugal",
+      "manual": true
+    },
+    "aja": {
+      "qid": "Q81888",
+      "label": "AFC Ajax",
+      "desc": "Dutch association football team",
+      "manual": true
+    },
+    "fey": {
+      "qid": "Q134241",
+      "label": "Feyenoord Rotterdam",
+      "desc": "Dutch football club based in Rotterdam",
+      "manual": true
+    },
+    "cel": {
+      "qid": "Q19593",
+      "label": "Celtic F.C.",
+      "desc": "association football club in Glasgow, Scotland",
+      "manual": true
+    },
+    "ran": {
+      "qid": "Q19597",
+      "label": "Rangers F.C.",
+      "desc": "association football club in Glasgow, Scotland",
+      "manual": true
+    },
+    "rsca": {
+      "qid": "Q187528",
+      "label": "R.S.C. Anderlecht",
+      "desc": "Belgian association football club",
+      "manual": true
+    },
+    "brg": {
+      "qid": "Q190916",
+      "label": "Club Brugge K.V.",
+      "desc": "association football club in Belgium",
+      "manual": true
+    },
+    "oly": {
+      "qid": "Q19628",
+      "label": "Olympiacos F.C.",
+      "desc": "professional association football club based in Piraeus, Greece. Part of the major multi-sport club Olympiacos SFP",
+      "manual": true
+    },
+    "shk": {
+      "qid": "Q172969",
+      "label": "FC Shakhtar Donetsk",
+      "desc": "professional football club based in Donetsk, Ukraine",
+      "manual": true
+    },
+    "dyn": {
+      "qid": "Q179075",
+      "label": "FC Dynamo Kyiv",
+      "desc": "professional association football club based in Kyiv, Ukraine",
+      "manual": true
+    },
+    "zen": {
+      "qid": "Q29108",
+      "label": "FC Zenit Saint Petersburg",
+      "desc": "association football club in Saint Petersburg",
+      "manual": true
+    },
+    "nas": {
+      "qid": "Q482764",
+      "label": "Al-Nassr",
+      "desc": "Saudi Arabian association football club",
+      "manual": true
+    },
+    "itt": {
+      "qid": "Q309480",
+      "label": "Al Ittihad FC",
+      "desc": "Saudi Arabian association football club based in Jeddah",
+      "manual": true
+    },
+    "mia": {
+      "qid": "Q16844931",
+      "label": "Inter Miami CF",
+      "desc": "American professional soccer club based in Miami",
+      "manual": true
+    },
+    "lag": {
+      "qid": "Q204357",
+      "label": "LA Galaxy",
+      "desc": "Major League Soccer club in Los Angeles, United States",
+      "manual": true
+    },
+    "spfc": {
+      "qid": "Q38568",
+      "label": "São Paulo FC",
+      "desc": "Brazilian professional football club",
+      "manual": true
+    },
+    "rbs": {
+      "qid": "Q994811",
+      "label": "FC Red Bull Salzburg",
+      "desc": "Austrian professional football club",
+      "manual": true
+    },
+    "dzg": {
+      "qid": "Q172803",
+      "label": "GNK Dinamo Zagreb",
+      "desc": "association football club in Zagreb, Croatia",
+      "manual": true
+    },
+    "czv": {
+      "qid": "Q173009",
+      "label": "FK Crvena zvezda",
+      "desc": "Serbian football club based in Belgrade",
+      "manual": true
+    },
+    "fb": {
+      "qid": "Q6601875",
+      "label": "Fenerbahçe Istanbul",
+      "desc": "association football section of multi-sports club Fenerbahçe SK",
+      "n": 652,
+      "extra": [],
+      "others": [
+        "Q19648:39",
+        "Q726288:0",
+        "Q5443319:0"
+      ]
+    },
+    "goz": {
+      "qid": "Q1423118",
+      "label": "Göztepe S.K.",
+      "desc": "Turkish sports club",
+      "n": 278,
+      "extra": [],
+      "others": [
+        "Q3564213:0",
+        "Q1559987:0",
+        "Q6707916:0"
+      ]
+    },
+    "kon": {
+      "qid": "Q513840",
+      "label": "Konyaspor",
+      "desc": "Turkish sports club",
+      "n": 313,
+      "extra": [],
+      "others": []
+    },
+    "agu": {
+      "qid": "Q492826",
+      "label": "MKE Ankaragücü",
+      "desc": "multi-sports club in Turkey",
+      "n": 330,
+      "extra": [],
+      "others": [
+        "Q20472580:22",
+        "Q20476660:0",
+        "Q28220475:0"
+      ]
+    },
+    "rcde": {
+      "qid": "Q8780",
+      "label": "RCD Espanyol de Barcelona",
+      "desc": "sports club in Spain",
+      "n": 1026,
+      "extra": [],
+      "others": [
+        "Q20101772:10",
+        "Q7276085:9",
+        "Q623007:4"
+      ]
+    },
+    "bvb": {
+      "qid": "Q41420",
+      "label": "Borussia Dortmund",
+      "desc": "German professional sports club based in Dortmund",
+      "n": 507,
+      "extra": [],
+      "others": [
+        "Q52345683:0",
+        "Q2149413:0",
+        "Q99195175:0"
+      ]
+    },
+    "hsv": {
+      "qid": "Q51974",
+      "label": "Hamburger SV",
+      "desc": "German sports club based in Hamburg, with its largest branch being its football department",
+      "n": 645,
+      "extra": [],
+      "others": [
+        "Q97905930:0",
+        "Q127433422:0"
+      ]
+    },
+    "sge": {
+      "qid": "Q38245",
+      "label": "Eintracht Frankfurt",
+      "desc": "sports club based in Frankfurt am Main, Hesse, Germany",
+      "n": 590,
+      "extra": [],
+      "others": [
+        "Q97905908:4",
+        "Q5349827:1",
+        "Q140591099:0"
+      ]
+    },
+    "bsc": {
+      "qid": "Q102720",
+      "label": "Hertha BSC",
+      "desc": "sports club of Berlin in Germany",
+      "n": 543,
+      "extra": [],
+      "others": [
+        "Q97905939:2",
+        "Q127433417:0",
+        "Q28854979:0"
+      ]
+    },
+    "scp": {
+      "qid": "Q75729",
+      "label": "Sporting CP",
+      "desc": "sports club based in Lisbon, Portugal",
+      "n": 606,
+      "extra": [],
+      "others": []
+    },
+    "psv": {
+      "qid": "Q11938",
+      "label": "PSV Eindhoven",
+      "desc": "sports club from Eindhoven, the Netherlands",
+      "n": 540,
+      "extra": [],
+      "others": [
+        "Q2160126:0",
+        "Q130997201:0",
+        "Q130997500:0"
+      ]
+    },
+    "pao": {
+      "qid": "Q4122219",
+      "label": "Panathinaikos F.C.",
+      "desc": "association football team in Greece",
+      "n": 455,
+      "extra": [],
+      "others": [
+        "Q61944648:5",
+        "Q7467957:3"
+      ]
+    },
+    "hil": {
+      "qid": "Q73965",
+      "label": "Al Hilal SFC",
+      "desc": "multi-sports club based in Riyadh, Saudi Arabia",
+      "n": 333,
+      "extra": [],
+      "others": []
+    },
+    "boca": {
+      "qid": "Q170703",
+      "label": "Boca Juniors",
+      "desc": "Argentine sports club",
+      "n": 814,
+      "extra": [],
+      "others": [
+        "Q4838458:0",
+        "Q499855:0",
+        "Q6034278:0"
+      ]
+    },
+    "riv": {
+      "qid": "Q15799",
+      "label": "Club Atlético River Plate",
+      "desc": "Argentine professional sports club based in Buenos Aires",
+      "n": 881,
+      "extra": [],
+      "others": [
+        "Q35827:0",
+        "Q276354:0"
+      ]
+    },
+    "fla": {
+      "qid": "Q17479",
+      "label": "Clube de Regatas do Flamengo",
+      "desc": "Brazilian sports club based in Rio de Janeiro",
+      "n": 1036,
+      "extra": [],
+      "others": [
+        "Q10275807:1",
+        "Q995561:0",
+        "Q5457206:0"
+      ]
+    },
+    "sfc": {
+      "qid": "Q80955",
+      "label": "Santos F.C.",
+      "desc": "Brazilian sports club",
+      "n": 762,
+      "extra": [],
+      "others": [
+        "Q3472988:10"
+      ]
+    },
+    "sccp": {
+      "qid": "Q35933",
+      "label": "S.C. Corinthians Paulista",
+      "desc": "multisport club based in São Paulo, Brazil",
+      "n": 834,
+      "extra": [],
+      "others": [
+        "Q1632704:95",
+        "Q2536648:63",
+        "Q5399092:1"
+      ]
+    },
+    "sep": {
+      "qid": "Q80964",
+      "label": "Sociedade Esportiva Palmeiras",
+      "desc": "Brazilian sports club",
+      "n": 877,
+      "extra": [],
+      "others": [
+        "Q924839:0",
+        "Q1801156:0",
+        "Q985972:0"
+      ]
+    }
+  },
+  "leagues": {
+    "tr1": {
+      "qid": "Q485568",
+      "label": "Süper Lig",
+      "desc": "top tier of association football in Turkey",
+      "manual": true
+    },
+    "eng": {
+      "qid": "Q9448",
+      "label": "Premier League",
+      "desc": "English men's association top football league",
+      "manual": true
+    },
+    "esp": {
+      "qid": "Q324867",
+      "label": "La Liga",
+      "desc": "men's top professional football division of the Spanish football league system",
+      "manual": true
+    },
+    "ita": {
+      "qid": "Q15804",
+      "label": "Serie A",
+      "desc": "professional league competition for football clubs located at the top of the Italian football league system",
+      "manual": true
+    },
+    "ger": {
+      "qid": "Q82595",
+      "label": "Bundesliga",
+      "desc": "German men's association football top league",
+      "manual": true
+    },
+    "fra": {
+      "qid": "Q13394",
+      "label": "Ligue 1",
+      "desc": "French professional league for men's association football clubs",
+      "manual": true
+    },
+    "por": {
+      "qid": "Q182994",
+      "label": "Primeira Liga",
+      "desc": "top division in Portuguese football",
+      "manual": true
+    },
+    "ksa": {
+      "qid": "Q255633",
+      "label": "Saudi Pro League",
+      "desc": "highest division of association football in the Saudi league system",
+      "manual": true
+    },
+    "mls": {
+      "qid": "Q18543",
+      "label": "Major League Soccer",
+      "desc": "professional soccer league in the USA and Canada",
+      "manual": true
+    },
+    "ned": {
+      "qid": "Q167541",
+      "label": "Eredivisie",
+      "desc": "professional association football league in the Netherlands",
+      "n": 65
+    }
+  },
+  "nt": {
+    "tr": {
+      "qid": "Q483856",
+      "label": "Turkey men's national football team",
+      "desc": "men's national association football team representing Turkey",
+      "n": 605,
+      "others": [
+        "Q31189930:0",
+        "Q19731112:0"
+      ]
+    },
+    "br": {
+      "qid": "Q83459",
+      "label": "Brazil men's national football team",
+      "desc": "men's national association football team representing Brazil",
+      "n": 888,
+      "others": [
+        "Q97585015:0",
+        "Q20061639:0"
+      ]
+    },
+    "ar": {
+      "qid": "Q79800",
+      "label": "Argentina men's national football team",
+      "desc": "men's national association football team representing Argentina",
+      "n": 996,
+      "others": [
+        "Q3251438:0"
+      ]
+    },
+    "fr": {
+      "qid": "Q47774",
+      "label": "France men's national association football team",
+      "desc": "national association football team representing France",
+      "n": 950,
+      "others": [
+        "Q55611966:0",
+        "Q18125775:0"
+      ]
+    },
+    "es": {
+      "qid": "Q42267",
+      "label": "Spain men's national football team",
+      "desc": "men's national association football team representing Spain",
+      "n": 791,
+      "others": []
+    },
+    "de": {
+      "qid": "Q43310",
+      "label": "Germany men's national association football team",
+      "desc": "German men's national association football team",
+      "n": 972,
+      "others": [
+        "Q316008:0",
+        "Q2842015:0"
+      ]
+    },
+    "it": {
+      "qid": "Q676899",
+      "label": "Italy men's national association football team",
+      "desc": "men's national association football team representing Italy",
+      "n": 855,
+      "others": [
+        "Q28229514:0",
+        "Q25221354:0"
+      ]
+    },
+    "pt": {
+      "qid": "Q267245",
+      "label": "Portugal men's national football team",
+      "desc": "men's national association football team representing Portugal",
+      "n": 616,
+      "others": [
+        "Q109287525:0"
+      ]
+    },
+    "nl": {
+      "qid": "Q47050",
+      "label": "Netherlands national association football team",
+      "desc": "men's national association football team representing the Netherlands",
+      "n": 729,
+      "others": [
+        "Q16845802:0",
+        "Q16644377:0"
+      ]
+    },
+    "en": {
+      "qid": "Q47762",
+      "label": "England men's national association football team",
+      "desc": "men's national association football team representing England",
+      "n": 1339,
+      "others": [
+        "Q3510642:0",
+        "Q5378032:0"
+      ]
+    },
+    "be": {
+      "qid": "Q166776",
+      "label": "Belgium men's national football team",
+      "desc": "men's national association football team representing Belgium",
+      "n": 692,
+      "others": [
+        "Q17509103:0",
+        "Q54809860:0"
+      ]
+    },
+    "uy": {
+      "qid": "Q134916",
+      "label": "Uruguay men's national football team",
+      "desc": "men's national association football team representing AUF",
+      "n": 701,
+      "others": []
+    },
+    "co": {
+      "qid": "Q212564",
+      "label": "Colombia men's national football team",
+      "desc": "men's national football team representing Colombia",
+      "n": 382,
+      "others": [
+        "Q2885627:0",
+        "Q25349349:0"
+      ]
+    },
+    "hr": {
+      "qid": "Q134479",
+      "label": "Croatia men's national football team",
+      "desc": "men's national association football team representing Croatia",
+      "n": 271,
+      "others": [
+        "Q5187077:0"
+      ]
+    },
+    "rs": {
+      "qid": "Q182740",
+      "label": "Serbia men's national football team",
+      "desc": "men's national association football team representing Serbia",
+      "n": 154,
+      "others": []
+    },
+    "sn": {
+      "qid": "Q207441",
+      "label": "Senegal men's national association football team",
+      "desc": "men's national association football team representing Senegal",
+      "n": 239,
+      "others": []
+    },
+    "ng": {
+      "qid": "Q181930",
+      "label": "Nigeria men's national football team",
+      "desc": "men's national association football team representing Nigeria",
+      "n": 525,
+      "others": [
+        "Q65079419:0",
+        "Q28128329:0"
+      ]
+    },
+    "ci": {
+      "qid": "Q175145",
+      "label": "Ivory Coast men's national football team",
+      "desc": "national association football team",
+      "n": 231,
+      "others": [
+        "Q5202775:0"
+      ]
+    },
+    "cm": {
+      "qid": "Q175309",
+      "label": "Cameroon men's national football team",
+      "desc": "men's national association football team representing Cameroon",
+      "n": 315,
+      "others": [
+        "Q55364111:0",
+        "Q5026455:0"
+      ]
+    },
+    "ma": {
+      "qid": "Q207337",
+      "label": "Morocco men's national football team",
+      "desc": "men's national association football team representing Morocco",
+      "n": 388,
+      "others": [
+        "Q25110744:0"
+      ]
+    },
+    "dk": {
+      "qid": "Q131785",
+      "label": "Denmark men's national football team",
+      "desc": "men's national association football team representing Denmark",
+      "n": 612,
+      "others": [
+        "Q5257994:0"
+      ]
+    },
+    "se": {
+      "qid": "Q160826",
+      "label": "Sweden men's national football team",
+      "desc": "men's national association football team representing Sweden",
+      "n": 891,
+      "others": [
+        "Q7654508:0",
+        "Q7654510:0"
+      ]
+    },
+    "pl": {
+      "qid": "Q166196",
+      "label": "Poland men's national football team",
+      "desc": "men's national association football team representing Poland",
+      "n": 966,
+      "others": []
+    },
+    "cz": {
+      "qid": "Q483868",
+      "label": "Czechia men's national football team",
+      "desc": "men's national association football team representing Czechia",
+      "n": 305,
+      "others": []
+    },
+    "gr": {
+      "qid": "Q134925",
+      "label": "Greece men's national football team",
+      "desc": "men's national association football team representing Greece",
+      "n": 509,
+      "others": []
+    },
+    "gh": {
+      "qid": "Q172014",
+      "label": "Ghana men's national football team",
+      "desc": "men's national association football team representing Ghana",
+      "n": 369,
+      "others": [
+        "Q55612599:0",
+        "Q5555442:0"
+      ]
+    },
+    "eg": {
+      "qid": "Q28089",
+      "label": "Egypt men's national football team",
+      "desc": "Men's association football team",
+      "n": 356,
+      "others": [
+        "Q55163638:0"
+      ]
+    },
+    "dz": {
+      "qid": "Q181903",
+      "label": "Algeria men's national football team",
+      "desc": "men's national football team of Algeria",
+      "n": 382,
+      "others": [
+        "Q3589643:0",
+        "Q60848276:0"
+      ]
+    },
+    "mx": {
+      "qid": "Q164089",
+      "label": "Mexico men's national football team",
+      "desc": "men's national association football team representing Mexico",
+      "n": 614,
+      "others": [
+        "Q2535422:0",
+        "Q6156227:0"
+      ]
+    },
+    "us": {
+      "qid": "Q164134",
+      "label": "United States men's national soccer team",
+      "desc": "men's national association football (soccer) team representing the USA",
+      "n": 752,
+      "others": [
+        "Q7892588:0",
+        "Q10708314:0"
+      ]
+    },
+    "jp": {
+      "qid": "Q170566",
+      "label": "Japan men's national football team",
+      "desc": "men's national association football team representing Japan",
+      "n": 603,
+      "others": [
+        "Q21190874:0",
+        "Q28689569:0"
+      ]
+    },
+    "kr": {
+      "qid": "Q543842",
+      "label": "South Korea men's national football team",
+      "desc": "men's national association football team representing South Korea",
+      "n": 494,
+      "others": []
+    },
+    "no": {
+      "qid": "Q184387",
+      "label": "Norway men's national association football team",
+      "desc": "national association football team representing Norway",
+      "n": 847,
+      "others": []
+    },
+    "at": {
+      "qid": "Q163534",
+      "label": "Austria men's national football team",
+      "desc": "men's national association football team representing Austria",
+      "n": 600,
+      "others": [
+        "Q85879043:0"
+      ]
+    },
+    "ch": {
+      "qid": "Q165141",
+      "label": "Switzerland men's national football team",
+      "desc": "men's national association football team representing Switzerland",
+      "n": 525,
+      "others": [
+        "Q85879058:0"
+      ]
+    },
+    "ru": {
+      "qid": "Q726080",
+      "label": "Russia men's national football team",
+      "desc": "men's national football team representing Russia",
+      "n": 274,
+      "others": [
+        "Q20994404:0",
+        "Q61416750:0"
+      ]
+    },
+    "ua": {
+      "qid": "Q170403",
+      "label": "Ukraine men's national football team",
+      "desc": "men's national association football team representing Ukraine",
+      "n": 297,
+      "others": [
+        "Q25435434:0",
+        "Q28704577:0"
+      ]
+    },
+    "cl": {
+      "qid": "Q172025",
+      "label": "Chile men's national football team",
+      "desc": "men's national association football team representing Chile",
+      "n": 521,
+      "others": [
+        "Q3251601:0",
+        "Q5098712:0"
+      ]
+    },
+    "py": {
+      "qid": "Q172020",
+      "label": "Paraguay men's national football team",
+      "desc": "men's national association football team representing Paraguay",
+      "n": 479,
+      "others": [
+        "Q7134671:0"
+      ]
+    },
+    "pe": {
+      "qid": "Q212166",
+      "label": "Peru men's national football team",
+      "desc": "men's national association football team representing Peru",
+      "n": 386,
+      "others": [
+        "Q7171009:0"
+      ]
+    },
+    "ec": {
+      "qid": "Q987584",
+      "label": "Ecuador men's national football team",
+      "desc": "men's national association football team representing Ecuador",
+      "n": 274,
+      "others": []
+    },
+    "ie": {
+      "qid": "Q163547",
+      "label": "Republic of Ireland men's national association football team",
+      "desc": "men's national football team representing the Republic of Ireland",
+      "n": 466,
+      "others": []
+    },
+    "sc": {
+      "qid": "Q34044",
+      "label": "Scotland men's national football team",
+      "desc": "men's association football team representing Scotland",
+      "n": 1046,
+      "others": [
+        "Q2565257:0",
+        "Q16225278:0"
+      ]
+    },
+    "wa": {
+      "qid": "Q180857",
+      "label": "Wales men's national association football team",
+      "desc": "men's association football team representing Wales",
+      "n": 500,
+      "others": []
+    },
+    "ba": {
+      "qid": "Q181190",
+      "label": "Bosnia and Herzegovina men's national football team",
+      "desc": "men's national association football team representing Bosnia and Herzegovina",
+      "n": 281,
+      "others": [
+        "Q19841338:0",
+        "Q28152435:0"
+      ]
+    },
+    "ge": {
+      "qid": "Q186268",
+      "label": "Georgia men's national football team",
+      "desc": "men's national association football team representing Georgia",
+      "n": 201,
+      "others": [
+        "Q5547932:0"
+      ]
+    },
+    "ir": {
+      "qid": "Q184602",
+      "label": "Iran men's national football team",
+      "desc": "men's national association football team representing Iran",
+      "n": 428,
+      "others": [
+        "Q55614615:0"
+      ]
+    },
+    "ml": {
+      "qid": "Q211733",
+      "label": "Mali men's national football team",
+      "desc": "men's national association football team representing Mali",
+      "n": 192,
+      "others": []
+    },
+    "au": {
+      "qid": "Q268208",
+      "label": "Australia men's national soccer team",
+      "desc": "men's national association football team representing Australia",
+      "n": 426,
+      "others": [
+        "Q4825057:0"
+      ]
+    },
+    "hu": {
+      "qid": "Q170561",
+      "label": "Hungary men's national football team",
+      "desc": "men's national association football team representing Hungary",
+      "n": 596,
+      "others": []
+    },
+    "ro": {
+      "qid": "Q168397",
+      "label": "Romania men's national association football team",
+      "desc": "national association football team",
+      "n": 655,
+      "others": [
+        "Q28224769:0",
+        "Q76762457:0"
+      ]
+    },
+    "bg": {
+      "qid": "Q180845",
+      "label": "Bulgaria men's national football team",
+      "desc": "men's national association football team representing Bulgaria",
+      "n": 422,
+      "others": []
+    },
+    "sk": {
+      "qid": "Q174512",
+      "label": "Slovakia men's national football team",
+      "desc": "men's national football team representing Slovakia",
+      "n": 309,
+      "others": []
+    },
+    "si": {
+      "qid": "Q172221",
+      "label": "Slovenia men's national football team",
+      "desc": "men's national association football team representing Slovenia",
+      "n": 186,
+      "others": []
+    },
+    "al": {
+      "qid": "Q186262",
+      "label": "Albania men's national football team",
+      "desc": "men's national football team representing Albania",
+      "n": 317,
+      "others": []
+    },
+    "tn": {
+      "qid": "Q27971",
+      "label": "Tunisia men's national football team",
+      "desc": "men's national association football team representing Tunisia",
+      "n": 274,
+      "others": [
+        "Q85874058:0",
+        "Q55978372:0"
+      ]
+    },
+    "ca": {
+      "qid": "Q208635",
+      "label": "Canadian men's national soccer team",
+      "desc": "men's national association football team representing Canada",
+      "n": 352,
+      "others": [
+        "Q3873631:4",
+        "Q5029526:0"
+      ]
+    },
+    "is": {
+      "qid": "Q189198",
+      "label": "Iceland men's national football team",
+      "desc": "men's national association football team representing Iceland",
+      "n": 282,
+      "others": [
+        "Q56291834:0"
+      ]
+    },
+    "fi": {
+      "qid": "Q186532",
+      "label": "Finland men's national football team",
+      "desc": "men's national association football team representing Finland",
+      "n": 324,
+      "others": []
+    },
+    "ve": {
+      "qid": "Q214151",
+      "label": "Venezuela men's national football team",
+      "desc": "Official representative of the Venezuelan Soccer Federation in international competitions",
+      "n": 218,
+      "others": [
+        "Q3251653:0"
+      ]
+    },
+    "ga": {
+      "qid": "Q235416",
+      "label": "Gabon men's national football team",
+      "desc": "national association football team",
+      "n": 96,
+      "others": []
+    },
+    "cd": {
+      "qid": "Q270080",
+      "label": "DR Congo men's national football team",
+      "desc": "The Democratic Republic of Congo national football team, nicknamed the Leopards",
+      "n": 298,
+      "others": []
+    },
+    "gn": {
+      "qid": "Q235411",
+      "label": "Guinea men's national football team",
+      "desc": "men's national association football team representing Guinea",
+      "n": 154,
+      "others": []
+    },
+    "me": {
+      "qid": "Q189018",
+      "label": "Montenegro men's national football team",
+      "desc": "men's national association football team representing Montenegro",
+      "n": 92,
+      "others": []
+    },
+    "mk": {
+      "qid": "Q188568",
+      "label": "North Macedonia men's national football team",
+      "desc": "men's national association football team representing North Macedonia",
+      "n": 221,
+      "others": []
+    },
+    "xk": {
+      "qid": "Q113143",
+      "label": "Kosovo men's national association football team",
+      "desc": "men's national association football team representing Kosovo",
+      "n": 87,
+      "others": [
+        "Q60670488:0"
+      ]
+    },
+    "az": {
+      "qid": "Q180800",
+      "label": "Azerbaijan men's national football team",
+      "desc": "national association football team representing Azerbaijan",
+      "n": 217,
+      "others": []
+    },
+    "jm": {
+      "qid": "Q235399",
+      "label": "Jamaica men's national association football team",
+      "desc": "men's national association football team representing Jamaica",
+      "n": 253,
+      "others": []
+    },
+    "cr": {
+      "qid": "Q194387",
+      "label": "Costa Rica men's national football team",
+      "desc": "men's national association football team representing Costa Rica",
+      "n": 369,
+      "others": [
+        "Q5174886:0",
+        "Q5174885:0"
+      ]
+    }
+  },
+  "blockers": {
+    "nir": {
+      "qid": "Q190978",
+      "label": "Northern Ireland men's national association football team",
+      "desc": "men's national association football team representing Northern Ireland",
+      "n": 309,
+      "others": [
+        "Q10602058:0"
+      ]
+    }
+  }
+}
