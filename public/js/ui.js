@@ -314,9 +314,19 @@ export function catIcon(cat, px = 30) {
   return jersey(cat.key, px);
 }
 
-/** Izgara başlığı. */
+/** Başlığın açık, tek satırlık hâli: "Claudio Ranieri ile çalıştı", "Şampiyonlar Ligi kazandı". */
+export const catLabel = (cat) => (cat.head ? cat.head.filter(Boolean).join(' ') : cat.name);
+
+/** Izgara başlığı: simge + kalın ad + ne istendiğini söyleyen küçük fiil. */
 export function catTile(cat) {
-  return h('div', { class: `hcat t-${cat.type}`, title: cat.desc || cat.name }, catIcon(cat), fit(h('span', { class: 'hname' }, cat.name), cat.name));
+  const [main, verb] = cat.head || [cat.name, ''];
+  return h(
+    'div',
+    { class: `hcat t-${cat.type}`, title: cat.desc || catLabel(cat) },
+    catIcon(cat),
+    fit(h('span', { class: 'hname' }, main), main),
+    verb ? h('span', { class: 'hverb' }, verb) : null,
+  );
 }
 
 /** Satır içi küçük başlık (cevap panelinde). */

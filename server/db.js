@@ -21,6 +21,28 @@ const LOC_OVERRIDE = {
   agu: "Ankaragücü'nde",
 };
 
+// Başlık iki satır: [kalın ad, ne istendiğini söyleyen fiil] — "Şampiyonlar Ligi / kazandı"
+const CUP_HEAD = {
+  ucl: ['Şampiyonlar Ligi', 'kazandı'],
+  uel: ['UEFA Kupası / Avrupa Ligi', 'kazandı'],
+  wc: ['Dünya Kupası', 'kazandı'],
+  euro: ['EURO', 'kazandı'],
+  tr1: ['Süper Lig', 'şampiyonu oldu'],
+  eng: ['Premier Lig', 'şampiyonu oldu'],
+  esp: ['La Liga', 'şampiyonu oldu'],
+  ita: ['Serie A', 'şampiyonu oldu'],
+  ger: ['Bundesliga', 'şampiyonu oldu'],
+  fra: ['Ligue 1', 'şampiyonu oldu'],
+};
+const WILD_HEAD = {
+  ballon: ["Ballon d'Or", 'kazandı'],
+  wcplay: ["Dünya Kupası'nda", 'oynadı'],
+  y2000: ['2000 ve sonrası', 'doğumlu'],
+  pre1980: ['1980 öncesi', 'doğumlu'],
+  clubs8: ['8+ takımda', 'oynadı'],
+  coach: ['Teknik direktör', 'oldu'],
+};
+
 // Klasik modda da görünen büyük ligler (diğerleri yalnızca Uzman)
 const BIG_LEAGUES = new Set(['tr1', 'eng', 'esp', 'ita', 'ger', 'fra']);
 
@@ -147,12 +169,24 @@ export class FootballDB {
     }
   }
 
+  /** Izgara başlığı: [kalın ad, fiil]. Kulüpte fiil yok (kulüpte oynamak zaten açık). */
+  headOf(cat) {
+    switch (cat.type) {
+      case 'nat': return [cat.name, 'uyruklu'];
+      case 'lg': return [cat.loc, 'oynadı'];
+      case 'cup': return CUP_HEAD[cat.cupKey] || [cat.name, 'kazandı'];
+      case 'mgr': return [cat.name, 'ile çalıştı'];
+      case 'wild': return WILD_HEAD[cat.wildKey] || [cat.name, ''];
+      default: return [cat.name, ''];
+    }
+  }
+
   /** İstemciye giden başlık bilgisi. */
   publicCat(cat) {
     const desc =
       cat.desc ||
       (cat.type === 'club' || cat.type === 'lg' ? `${cat.loc} oynamış` : cat.type === 'nat' ? `${cat.name} uyruklu` : `Mevki: ${cat.name}`);
-    const o = { key: cat.key, type: cat.type, name: cat.name, desc };
+    const o = { key: cat.key, type: cat.type, name: cat.name, desc, head: this.headOf(cat) };
     if (cat.short) o.short = cat.short;
     if (cat.colors) o.colors = cat.colors;
     if (cat.flag) o.flag = cat.flag;

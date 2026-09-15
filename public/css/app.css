@@ -438,7 +438,17 @@ button.ticket:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--i
   letter-spacing: 0.01em;
   text-transform: uppercase;
 }
-.crest, .flag, .jersey { flex: none; display: block; }
+.hcat:not(.t-club) .hname { -webkit-line-clamp: 3; }
+.hcat .hverb {
+  margin-top: -1px;
+  font-size: clamp(9.5px, 16.5cqi, 12px);
+  font-weight: 800;
+  line-height: 1.05;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.hcat.t-cup .hverb, .hcat.t-mgr .hverb { color: var(--accent); }
+.crest, .flag, .jersey, .trophy, .tactics, .joker { flex: none; display: block; }
 .flag { border-radius: 2px; }
 .lg-badge {
   display: inline-grid;

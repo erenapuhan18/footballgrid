@@ -104,6 +104,12 @@ test('veritabanı: kupa, menajer ve joker kategorileri', () => {
   assert.equal(db.failText(mgr), 'Fatih Örnek ile çalışmadı');
   assert.equal(db.publicCat(mgr).desc, 'Fatih Örnek ile çalışmış');
   assert.equal(db.publicCat(cup).short, 'ŞL');
+  // Başlıklar ne istendiğini açıkça söyler
+  assert.deepEqual(db.publicCat(mgr).head, ['Fatih Örnek', 'ile çalıştı']);
+  assert.deepEqual(db.publicCat(cup).head, ['Şampiyonlar Ligi', 'kazandı']);
+  assert.deepEqual(db.publicCat(db.catByKey.get('lg:l1')).head, ["Örnek Lig'de", 'oynadı']);
+  assert.deepEqual(db.publicCat(db.catByKey.get('nat:br')).head, ['Brezilya', 'uyruklu']);
+  assert.deepEqual(db.publicCat(db.catByKey.get('club:aas')).head, ['Aslanspor', '']);
 });
 
 test('ızgara: her modda çözülebilir, bariz hücre yok, tür karışımı var', () => {

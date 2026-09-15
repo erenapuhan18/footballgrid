@@ -31,7 +31,9 @@ export function GameScreen(ctx) {
   const anim = new Map();
 
   const player = (pid) => g.players.find((p) => p.pid === pid);
-  const cellName = (i) => `${g.rows[Math.floor(i / size)].name} × ${g.cols[i % size].name}`;
+  // Açık başlık metni: "Manchester United × Claudio Ranieri ile çalıştı"
+  const label = (cat) => (cat.head ? cat.head.filter(Boolean).join(' ') : cat.name);
+  const cellName = (i) => `${label(g.rows[Math.floor(i / size)])} × ${label(g.cols[i % size])}`;
 
   /* ── üst şerit, skor, sıra */
   const turnNo = h('span', { class: 'gturn' });
