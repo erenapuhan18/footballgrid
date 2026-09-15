@@ -182,7 +182,8 @@ oynamış Türk". Maç bitince hücreye dokun: **oyuncu kartı** (oyundaki kulü
 ## Telefondan oynamak (bilgisayar açık olmadan)
 
 **Canlı adres: https://footballgrid.onrender.com** — telefonda aç → tarayıcı menüsünden **Ana ekrana ekle**: uygulama gibi
-tam ekran açılır. Bu depoya her `git push`'ta Render kendini günceller.
+tam ekran açılır. Kodu güncelledikten sonra Render panelinde **Manual Deploy → Deploy latest commit** (push kendiliğinden
+dağıtım tetiklemiyor; Render GitHub uygulaması depoya kurulursa otomatik olur).
 
 GitHub Pages bu oyunu çalıştıramaz; odalar için sürekli açık bir sunucu gerekir. Kendi kopyanı kurmak istersen:
 
