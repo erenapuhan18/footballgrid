@@ -181,15 +181,16 @@ oynamış Türk". Maç bitince hücreye dokun: **oyuncu kartı** (oyundaki kulü
 
 ## Telefondan oynamak (bilgisayar açık olmadan)
 
-GitHub Pages bu oyunu çalıştıramaz; odalar için sürekli açık bir sunucu gerekir. Ücretsiz ve kalıcı yol: **Render**.
+**Canlı adres: https://footballgrid.onrender.com** — telefonda aç → tarayıcı menüsünden **Ana ekrana ekle**: uygulama gibi
+tam ekran açılır. Bu depoya her `git push`'ta Render kendini günceller.
+
+GitHub Pages bu oyunu çalıştıramaz; odalar için sürekli açık bir sunucu gerekir. Kendi kopyanı kurmak istersen:
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/erenapuhan18/footballgrid)
 
 1. Düğmeye bas → **GitHub ile giriş yap** (kredi kartı istemez).
 2. `render.yaml` okunur (Frankfurt, ücretsiz plan) → **Deploy Blueprint / Apply**.
-3. 2-3 dk sonra `https://footballgrid-xxxx.onrender.com` hazır. Telefonda aç → tarayıcı menüsünden **Ana ekrana ekle**:
-   uygulama gibi tam ekran açılır.
-4. Bu depoya her `git push`'ta Render kendini günceller.
+3. 2-3 dk sonra `https://<ad>.onrender.com` hazır.
 
 Ücretsiz planda 15 dk kimse girmezse sunucu uyur; ilk açılış ~30-60 sn sürer. Odalar bellekte tutulur, sunucu uyuyunca
 açık odalar kapanır. Sunucu ~170 MB bellek kullanır (sınır 512 MB).
