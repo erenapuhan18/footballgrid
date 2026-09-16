@@ -129,28 +129,34 @@ test('veritabanı: Türkiye jokerleri ve oyuncu kartı', () => {
   assert.equal(db.card(10 ** 9), null);
 });
 
-test('ızgara: her modda çözülebilir, bariz hücre yok, tür karışımı var', () => {
-  const colTypes = new Set();
+test('ızgara: her modda çözülebilir, bariz hücre yok, tür dağılımı dengeli', () => {
+  const types = new Set();
   for (const [mode, size] of [['klasik', 3], ['klasik', 4], ['hizli', 3], ['uzman', 3], ['uzman', 4]]) {
     for (let k = 0; k < 20; k++) {
       const { rows, cols } = makeGrid(db, mode, size);
       assert.equal(rows.length, size);
       assert.equal(cols.length, size);
-      assert.equal(new Set([...rows, ...cols].map((c) => c.key)).size, size * 2, 'tekrar eden başlık');
-      const nonClubRows = rows.filter((r) => r.type !== 'club').length;
-      assert.ok(mode === 'uzman' ? nonClubRows <= 1 : nonClubRows === 0, `${mode}: satırlar kulüp`);
-      if (mode !== 'uzman') assert.ok(cols.some((c) => c.type === 'nat'), `${mode}: ülke sütunu yok`);
+      const all = [...rows, ...cols];
+      assert.equal(new Set(all.map((c) => c.key)).size, size * 2, 'tekrar eden başlık');
+      // "full takım" olmasın: başlıkların yarısından azı kulüp, ama her eksende en az bir kulüp
+      const clubs = all.filter((c) => c.type === 'club').length;
+      assert.ok(clubs >= 2 && clubs <= size + 1, `${mode}: kulüp dağılımı (${clubs}/${size * 2})`);
+      assert.ok(rows.some((r) => r.type === 'club'), `${mode}: satırlarda kulüp yok`);
+      assert.ok(cols.some((c) => c.type === 'club'), `${mode}: sütunlarda kulüp yok`);
+      if (mode !== 'uzman') assert.ok(all.some((c) => c.type === 'nat'), `${mode}: ülke başlığı yok`);
       const known = db.knownLimit(MODES[mode].knownSl);
       for (const r of rows) {
         for (const c of cols) {
-          colTypes.add(c.type);
+          types.add(r.type);
+          types.add(c.type);
           assert.ok(db.count(r, c, known) >= MODES[mode].minAnswers, `${mode} ${r.name}×${c.name}`);
-          if (r.type === 'club' && c.type === 'nat') assert.notEqual(r.nation, c.natKey, 'kulüp × kendi ülkesi');
+          const [club, nat] = r.type === 'club' && c.type === 'nat' ? [r, c] : c.type === 'club' && r.type === 'nat' ? [c, r] : [null, null];
+          if (club) assert.notEqual(club.nation, nat.natKey, 'kulüp × kendi ülkesi');
         }
       }
     }
   }
-  for (const t of ['club', 'nat', 'cup', 'mgr', 'wild']) assert.ok(colTypes.has(t), 'sütunlarda tür yok: ' + t);
+  for (const t of ['club', 'nat', 'cup', 'mgr', 'wild']) assert.ok(types.has(t), 'başlıklarda tür yok: ' + t);
 });
 
 /* ───────── maç motoru */
@@ -305,7 +311,8 @@ test('maç: ipucu — maç başına bir kez, sırayı yakmaz, kapalıysa verilme
   const a = g.turn.pid;
   const r = g.hint(a, 0);
   assert.equal(r.ok, true);
-  assert.ok(r.hint.initials.includes('.') && r.hint.letters > 0);
+  assert.ok(Array.isArray(r.hint.nats) && Array.isArray(r.hint.pos), 'ipucu: uyruk ve mevki listesi');
+  assert.ok(r.hint.age === null || r.hint.age > 0, 'ipucu: yaş');
   assert.equal(g.hint(a, 0).error, 'İpucu hakkını bu maçta kullandın.');
   assert.equal(g.turn.pid, a, 'ipucu sırayı yakmaz');
   assert.equal(g.log.at(-1).kind, 'hint');

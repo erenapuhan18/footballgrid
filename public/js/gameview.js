@@ -1,7 +1,7 @@
 /* Maç ekranı: skor şeridi, sıra/süre, ızgara, cevap paneli (ipucu), akış, sonuç ve oyuncu kartı.
    İki tarz: sırayla (turn) ve aynı anda (race — sıra yok, ilk doğru bilen kapar, yanlışa 3 sn ceza). */
 
-import { h, put, fit, toast, modal, catTile, catChip, gridGlyph, playerCard, COLOR_HEX } from './ui.js';
+import { h, put, fit, toast, modal, catTile, catChip, gridGlyph, playerCard, flag, COLOR_HEX } from './ui.js';
 
 const REASON = {
   line: 'Yan yana üç hücre tamamlandı.',
@@ -143,11 +143,12 @@ export function GameScreen(ctx) {
       else list.replaceChildren();
       return paintActive();
     }
+    // Yıl yazılmaz; yalnız aynı adlı futbolcuları ayırt etmek için uyruk bayrağı
     list.replaceChildren(...arr.map((it, i) =>
       h('li', { role: 'option', id: `sg-${i}`, on: { mousedown: (e) => e.preventDefault(), click: () => submit(it) } },
         h('span', { class: 'nm' }, it.name),
         it.alias ? h('span', { class: 'al' }, it.alias) : null,
-        it.by ? h('span', { class: 'by' }, String(it.by)) : null)));
+        it.flag ? h('span', { class: 'sugflag' }, flag(it.flag, 16)) : null)));
     paintActive();
   }
 
@@ -237,8 +238,12 @@ export function GameScreen(ctx) {
     if (cell === null || cell === undefined) return;
     try {
       const { hint: x } = await net.request('game/hint', { cell });
-      const nat = x.nats?.length ? x.nats.join(' / ') : 'uyruğu bilinmiyor';
-      hint = { cell, text: `💡 ${x.initials} · ${x.letters} harf · ${x.by ? `${x.by} doğumlu` : 'doğum yılı bilinmiyor'} · ${nat}` };
+      const bits = [
+        x.nats?.length ? x.nats.join(' / ') : 'uyruğu bilinmiyor',
+        x.pos?.length ? x.pos.join(', ') : null,
+        x.age ? `${x.age} yaşında` : null,
+      ].filter(Boolean);
+      hint = { cell, text: `💡 ${x.recent ? 'Yakın dönemden' : 'Olası'} bir cevap: ${bits.join(' · ')}` };
       update(room);
       input.focus();
     } catch (e) {

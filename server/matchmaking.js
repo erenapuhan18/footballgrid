@@ -80,7 +80,7 @@ export class Matchmaker {
     }
   }
 
-  form(group, bots) {
+  form(group, bots, level) {
     const now = Date.now();
     for (const e of group) {
       const q = this.queues[e.size];
@@ -91,16 +91,16 @@ export class Matchmaker {
       this.avgWait[e.size] = prev == null ? w : prev * 0.7 + w * 0.3;
     }
     const size = group[0].size;
-    this.rooms.createQuick(group.map((e) => ({ session: e.session, nick: e.nick })), bots, size);
+    this.rooms.createQuick(group.map((e) => ({ session: e.session, nick: e.nick })), bots, size, level);
   }
 
-  withBots(session) {
+  withBots(session, level) {
     const e = session.queue;
     if (!e) throw new RoomError('no_queue', 'Şu an rakip aramıyorsun.');
     if (Date.now() - e.since < BOT_OFFER_MS - 500) throw new RoomError('too_soon', 'Biraz daha bekle, rakip aranıyor.');
     const others = this.queues[e.size].filter((x) => x !== e && !x.offlineSince);
     const group = [e, ...others].slice(0, e.size);
-    this.form(group, e.size - group.length);
+    this.form(group, e.size - group.length, level);
     this.broadcast();
   }
 

@@ -1,5 +1,5 @@
 /* Futbolcu veritabanı: kategoriler, bit kümeleri (hücre başına cevap sayımı), isim araması ve oyuncu kartı.
-   Kategori türleri: club · nat (uyruk) · lg (lig) · pos (mevki) · cup (kupa) · mgr (menajer) · wild (joker) */
+   Kategori türleri: club · nat (uyruk) · lg (lig) · pos (mevki) · cup (kupa) · mgr (menajer) · mate (takım arkadaşı) · wild (joker) */
 
 import { readFileSync } from 'node:fs';
 import { fold, locative } from './text.js';
@@ -41,6 +41,21 @@ const WILD_HEAD = {
   pre1980: ['1980 öncesi', 'doğumlu'],
   clubs8: ['8+ takımda', 'oynadı'],
   coach: ['Teknik direktör', 'oldu'],
+  ucl2: ['2+ Şampiyonlar Ligi', 'kazandı'],
+  lt2big: ["5 büyük ligin 2+'sinde", 'şampiyon oldu'],
+  big3: ["5 büyük ligin 3+'ünde", 'oynadı'],
+  big4: ["5 büyük ligin 4+'ünde", 'oynadı'],
+  lt3tr1: ['3+ kez Süper Lig', 'şampiyonu oldu'],
+  lt3eng: ['3+ kez Premier Lig', 'şampiyonu oldu'],
+  lt3esp: ['3+ kez La Liga', 'şampiyonu oldu'],
+  lt3ita: ['3+ kez Serie A', 'şampiyonu oldu'],
+  lt3ger: ['3+ kez Bundesliga', 'şampiyonu oldu'],
+  d70: ["1970'lerde", 'doğdu'],
+  d80: ["1980'lerde", 'doğdu'],
+  d90: ["1990'larda", 'doğdu'],
+  treble: ['Treble', 'kazandı'],
+  apps300: ['Tek kulüpte 300+', 'lig maçı oynadı'],
+  goals100: ['100+ lig golü', 'attı'],
 };
 
 // Klasik modda da görünen büyük ligler (diğerleri yalnızca Uzman)
@@ -66,9 +81,9 @@ export class FootballDB {
     this.source = raw.source;
     this.players = raw.players
       .filter((p) => !DENY.has(p[8]))
-      .map(([name, by, sl, clubs, nats, leagues, pos, aliases, qid, cups, mgrs, wild, st], i) => ({
+      .map(([name, by, sl, clubs, nats, leagues, pos, aliases, qid, cups, mgrs, wild, st, mates], i) => ({
         i, name, by, sl, clubs, nats, leagues, pos, qid,
-        aliases: aliases || [], cups: cups || [], mgrs: mgrs || [], wild: wild || [], st: st || null,
+        aliases: aliases || [], cups: cups || [], mgrs: mgrs || [], wild: wild || [], st: st || null, mates: mates || [],
       }));
     // dosyada sitelink sayısına göre azalan sıralı → düşük indeks = daha tanınmış
 
@@ -87,6 +102,10 @@ export class FootballDB {
       ...(raw.cups || []).map((c, idx) => ({ key: 'cup:' + c.key, type: 'cup', idx, name: c.name, short: c.short, tier: c.tier, desc: c.desc, fail: c.fail, cupKey: c.key })),
       ...(raw.managers || []).map((m, idx) => ({
         key: 'mgr:' + m.key, type: 'mgr', idx, name: m.name, tier: m.tier, desc: `${m.name} ile çalışmış`, fail: `${m.name} ile çalışmadı`,
+      })),
+      ...(raw.mates || []).map((m, idx) => ({
+        key: 'mate:' + m.key, type: 'mate', idx, name: m.name, tier: m.tier,
+        desc: `${m.name} ile aynı takımda oynamış`, fail: `${m.name} ile aynı takımda oynamadı`,
       })),
       ...wilds.map((w, idx) => ({ key: 'wild:' + w.key, type: 'wild', idx, name: w.name, tier: w.tier, desc: w.desc, fail: w.fail, wildKey: w.key })),
       ...this.turkishWilds(raw, wilds.length),
@@ -142,6 +161,7 @@ export class FootballDB {
       case 'pos': return ((p.pos >> cat.idx) & 1) === 1;
       case 'cup': return p.cups.includes(cat.idx);
       case 'mgr': return p.mgrs.includes(cat.idx);
+      case 'mate': return p.mates.includes(cat.idx);
       case 'wild': return cat.test ? cat.test(p) : p.wild.includes(cat.idx);
       default: return false;
     }
@@ -212,6 +232,7 @@ export class FootballDB {
       case 'lg': return [cat.loc, 'oynadı'];
       case 'cup': return CUP_HEAD[cat.cupKey] || [cat.name, 'kazandı'];
       case 'mgr': return [cat.name, 'ile çalıştı'];
+      case 'mate': return [cat.name, 'ile oynadı'];
       case 'wild': return WILD_HEAD[cat.wildKey] || [cat.name, ''];
       default: return [cat.name, ''];
     }
@@ -229,7 +250,7 @@ export class FootballDB {
     return o;
   }
 
-  /** Oyuncu kartı: kulüpleri (yıllarıyla), uyruk, mevki, kupalar, hocalar, özellikler. */
+  /** Oyuncu kartı: kulüpleri (yıllarıyla), uyruk, mevki, kupalar, hocalar, takım arkadaşları, özellikler. */
   card(fid) {
     const p = this.players[fid];
     if (!p) return null;
@@ -252,6 +273,7 @@ export class FootballDB {
       leagues: p.leagues.map((i) => T.lg[i]?.name).filter(Boolean),
       cups: p.cups.map((i) => T.cup?.[i]).filter(Boolean).map(label),
       mgrs: p.mgrs.map((i) => T.mgr?.[i]?.name).filter(Boolean),
+      mates: p.mates.map((i) => T.mate?.[i]?.name).filter(Boolean),
       wild: (T.wild || []).filter((c) => c && this.matches(p, c)).map(label),
     };
   }
@@ -272,7 +294,8 @@ export class FootballDB {
     }
   }
 
-  /** Otomatik tamamlama: her sorgu kelimesi ismin bir kelimesinin başı olmalı. */
+  /** Otomatik tamamlama: her sorgu kelimesi ismin bir kelimesinin başı olmalı.
+      Aynı adlı futbolcular için ayırt edici olarak uyruk bayrağı gider (doğum yılı değil). */
   search(q, limit = 8) {
     const qt = tokens(String(q).slice(0, 48));
     if (!qt.length || qt.join('').length < 2) return [];
@@ -292,9 +315,22 @@ export class FootballDB {
       if (hits.length >= 80) break;
     }
     hits.sort((a, b) => a.rank - b.rank || a.va.i - b.va.i);
-    return hits.slice(0, limit).map(({ va }) => {
+    const out = hits.slice(0, limit).map(({ va }) => {
       const p = this.players[va.i];
-      return { id: p.i, name: p.name, by: p.by, alias: va.alias ? va.text : undefined };
+      return { id: p.i, name: p.name, alias: va.alias ? va.text : undefined };
     });
+    const dup = new Set();
+    const seenName = new Set();
+    for (const it of out) {
+      const k = fold(it.name);
+      if (seenName.has(k)) dup.add(k);
+      seenName.add(k);
+    }
+    for (const it of out) {
+      if (!dup.has(fold(it.name))) continue;
+      const c = this.byType.nat?.[this.players[it.id].nats[0]];
+      if (c) it.flag = c.flag;
+    }
+    return out;
   }
 }

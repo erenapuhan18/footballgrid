@@ -338,7 +338,8 @@ export function catChip(cat) {
 export function playerCard(card) {
   const years = (c) => (c.from === null || c.from === undefined ? '' : `${c.from}–${c.to === 0 ? 'bugün' : c.to ?? '?'}`);
   const section = (title, body) => h('div', { class: 'pc-sec' }, h('p', { class: 'label' }, title), body);
-  const meta = [card.by ? `${card.by} doğumlu` : null, card.pos?.length ? card.pos.join(', ') : null].filter(Boolean).join(' · ');
+  const age = card.by ? new Date().getFullYear() - card.by : null;
+  const meta = [age ? `${age} yaşında` : null, card.pos?.length ? card.pos.join(', ') : null].filter(Boolean).join(' · ');
   return h(
     'div',
     { class: 'pcard' },
@@ -351,6 +352,7 @@ export function playerCard(card) {
       : null,
     card.cups.length ? section('KUPALARI', h('div', { class: 'pc-tags' }, card.cups.map((x) => h('span', { class: 'pc-tag cup' }, '🏆 ', x)))) : null,
     card.mgrs.length ? section('ÇALIŞTIĞI HOCALAR', h('p', { class: 'pc-list' }, card.mgrs.slice(0, 12).join(' · '))) : null,
+    card.mates?.length ? section('TAKIM ARKADAŞLARI', h('p', { class: 'pc-list' }, card.mates.slice(0, 12).join(' · '))) : null,
     card.wild.length ? section('ÖZELLİKLERİ', h('div', { class: 'pc-tags' }, card.wild.map((x) => h('span', { class: 'pc-tag' }, x)))) : null,
     card.qid
       ? h('a', { class: 'pc-src', href: `https://www.wikidata.org/wiki/${card.qid}`, target: '_blank', rel: 'noopener noreferrer' }, 'Kaynak: Wikidata ↗')

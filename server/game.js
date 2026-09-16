@@ -74,7 +74,7 @@ export class Game extends EventEmitter {
       players.map((p) => [
         p.pid,
         {
-          pid: p.pid, nick: p.nick, color: p.color, bot: !!p.bot, left: false, online: true, hintUsed: false, cooldownUntil: 0,
+          pid: p.pid, nick: p.nick, color: p.color, bot: !!p.bot, level: p.level || null, left: false, online: true, hintUsed: false, cooldownUntil: 0,
           stats: { correct: 0, wrong: 0, pass: 0, timeout: 0, steals: 0 },
         },
       ]),
@@ -261,7 +261,7 @@ export class Game extends EventEmitter {
     return { ok: true };
   }
 
-  /** Maç başına 1 ipucu: hücrenin olası cevaplarından birinin baş harfleri, doğum yılı ve uyruğu. */
+  /** Maç başına 1 ipucu: olası cevaplardan (öncelikle yakın dönemden) birinin uyruğu, mevkisi ve yaşı. */
   hint(pid, cell) {
     if (!this.hints) return { ok: false, error: 'Bu odada ipucu kapalı.' };
     const err = this.checkTurn(pid) || (Number.isInteger(cell) ? this.canTake(pid, cell) : 'Önce bir hücre seç.');
@@ -269,18 +269,20 @@ export class Game extends EventEmitter {
     const me = this.players.get(pid);
     if (me.hintUsed) return { ok: false, error: 'İpucu hakkını bu maçta kullandın.' };
     const [row, col] = this.catsOf(cell);
-    const cands = this.db.answers(row, col, 8, this.excluded).filter((p) => p.i !== this.cells[cell].fid);
+    const cands = this.db.answers(row, col, 24, this.excluded).filter((p) => p.i !== this.cells[cell].fid);
     if (!cands.length) return { ok: false, error: 'Bu hücre için ipucu bulunamadı.' };
-    const p = cands[Math.floor(this.rng() * Math.min(cands.length, 4))];
+    // Yakın dönem: hâlâ bir kulüpte olan ya da son yıllarda oynamış futbolcular
+    const recent = cands.filter((p) => (p.st || []).some(([, , to]) => to === 0 || to >= 2015));
+    const pool = recent.length ? recent : cands;
+    const p = pool[Math.floor(this.rng() * Math.min(pool.length, 4))];
     me.hintUsed = true;
     this.pushLog({ kind: 'hint', pid, cell });
     this.changed();
-    const initials = p.name
-      .split(/[\s-]+/)
-      .filter(Boolean)
-      .map((w) => w[0].toLocaleUpperCase('tr') + '.')
-      .join(' ');
-    return { ok: true, hint: { initials, by: p.by, nats: this.db.natNames(p), letters: p.name.replace(/[\s-]/g, '').length } };
+    const pos = (this.db.byType.pos || []).filter((c) => c && this.db.matches(p, c)).map((c) => c.name);
+    return {
+      ok: true,
+      hint: { nats: this.db.natNames(p), pos, age: p.by ? new Date().getFullYear() - p.by : null, recent: recent.length > 0 },
+    };
   }
 
   setOnline(pid, online) {
@@ -387,7 +389,7 @@ export class Game extends EventEmitter {
       turn: this.turn && { pid: this.turn.pid, no: this.turn.no, endsAt: this.turn.endsAt, selected: this.turn.selected },
       order: this.order,
       players: [...this.players.values()].map((p) => ({
-        pid: p.pid, nick: p.nick, color: p.color, bot: p.bot, left: p.left, online: p.online,
+        pid: p.pid, nick: p.nick, color: p.color, bot: p.bot, level: p.level, left: p.left, online: p.online,
         cells: this.cellsOf(p.pid), correct: p.stats.correct, wrong: p.stats.wrong,
         hintUsed: p.hintUsed, cooldownUntil: p.cooldownUntil,
       })),

@@ -188,7 +188,7 @@ try {
   };
   const pick = async (page, cell, player) => {
     await page.ev(`$$('.grid .cell')[${cell}].click(); await wait('.answer:not([hidden])'); type($('.answer input'), ${JSON.stringify(player.name)});
-      const li = await wait(() => $$('.sugg li').find((l) => l.querySelector('.nm')?.textContent === ${JSON.stringify(player.name)} && (!${player.by || 0} || l.querySelector('.by')?.textContent === '${player.by || ''}')));
+      const li = await wait(() => $$('.sugg li').find((l) => l.querySelector('.nm')?.textContent === ${JSON.stringify(player.name)}));
       li.click();`);
   };
 
@@ -262,13 +262,14 @@ try {
   const lobbyTxt = await H.ev(`await wait(() => $$('.pl:not(.empty)').length === 2); return $('.settings').textContent;`);
   check(/Aynı anda · 3 dk/.test(lobbyTxt) && /tekrar olur/.test(lobbyTxt), 'lobi: ayar özeti', lobbyTxt);
   await H.ev(`btn('MAÇI BAŞLAT').click(); await wait('.screen.game', 7000);`);
-  const raceInfo = await H.ev(`return { t: $('.gturn').textContent, b: $('.btxt').textContent };`);
-  check(raceInfo.t === 'AYNI ANDA' && /Aynı anda/.test(raceInfo.b), 'aynı anda modu: sıra yok, herkes oynar', JSON.stringify(raceInfo));
+  const raceInfo = await H.ev(`return { t: $('.gturn').textContent, b: $('.btxt').textContent, m: $('.gmode').textContent };`);
+  // Aynı anda modunda hamle sayacı yok (sıra yok); mod bilgisi üst şeritteki etikette
+  check(raceInfo.t === '' && /Aynı anda/.test(raceInfo.b) && /Aynı anda/.test(raceInfo.m), 'aynı anda modu: sıra yok, herkes oynar', JSON.stringify(raceInfo));
   const rroom = app.rooms.rooms.get(rc);
   const free = rroom.game.cells.findIndex((c) => !c.owner);
   await H.ev(`$$('.grid .cell')[${free}].click(); await wait('.answer:not([hidden])'); $('.hint-btn').click(); await wait('.hintbox:not([hidden])');`);
   const hintTxt = await H.ev(`return $('.hintbox').textContent;`);
-  check(/💡 .+ harf/.test(hintTxt), 'ipucu gösterildi', hintTxt);
+  check(/💡 .+ bir cevap:/.test(hintTxt), 'ipucu gösterildi', hintTxt);
   await H.shot('18-race-hint.png');
   const [rr, cc] = rroom.game.catsOf(free);
   const ans = app.db.answers(rr, cc, 1)[0];

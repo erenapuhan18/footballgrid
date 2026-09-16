@@ -240,6 +240,28 @@ export const WILDCARDS = [
   ['pre1980', '1980 öncesi doğumlu', '1980 öncesi doğmuş', '1980 öncesi doğmamış', 'k'],
   ['clubs8', '8+ takımda oynadı', 'En az 8 farklı takımda oynamış (kiralık ve altyapı dahil)', '8 farklı takıma ulaşmamış', 'u'],
   ['coach', 'Teknik direktör oldu', 'Sonradan teknik direktörlük de yapmış', 'teknik direktörlük yapmamış', 'k'],
+  // kupa sayıları, lig sayıları, doğum on yılı, treble, bilgi kutusundaki lig maçı/golü
+  ['ucl2', '2+ Şampiyonlar Ligi', 'En az 2 kez Şampiyonlar Ligi kazanmış', '2 kez Şampiyonlar Ligi kazanmadı', 'k'],
+  ['lt2big', "5 büyük ligin 2+'sinde şampiyon", '5 büyük ligin en az ikisinde şampiyon olmuş', '5 büyük ligin ikisinde şampiyon olmadı', 'k'],
+  ['big3', "5 büyük ligin 3+'ünde oynadı", "5 büyük ligin (İngiltere, İspanya, İtalya, Almanya, Fransa) en az üçünde oynamış", '5 büyük ligin üçünde oynamadı', 'k'],
+  ['big4', "5 büyük ligin 4+'ünde oynadı", '5 büyük ligin en az dördünde oynamış', '5 büyük ligin dördünde oynamadı', 'u'],
+  ['lt3tr1', '3+ Süper Lig şampiyonluğu', 'En az 3 kez Süper Lig şampiyonu olmuş', '3 kez Süper Lig şampiyonu olmadı', 'k'],
+  ['lt3eng', '3+ Premier Lig şampiyonluğu', 'En az 3 kez Premier Lig şampiyonu olmuş', '3 kez Premier Lig şampiyonu olmadı', 'k'],
+  ['lt3esp', '3+ La Liga şampiyonluğu', 'En az 3 kez La Liga şampiyonu olmuş', '3 kez La Liga şampiyonu olmadı', 'k'],
+  ['lt3ita', '3+ Serie A şampiyonluğu', 'En az 3 kez Serie A şampiyonu olmuş', '3 kez Serie A şampiyonu olmadı', 'k'],
+  ['lt3ger', '3+ Bundesliga şampiyonluğu', 'En az 3 kez Bundesliga şampiyonu olmuş', '3 kez Bundesliga şampiyonu olmadı', 'k'],
+  ['d70', "1970'lerde doğdu", '1970-1979 arasında doğmuş', "70'lerde doğmadı", 'k'],
+  ['d80', "1980'lerde doğdu", '1980-1989 arasında doğmuş', "80'lerde doğmadı", 'k'],
+  ['d90', "1990'larda doğdu", '1990-1999 arasında doğmuş', "90'larda doğmadı", 'k'],
+  ['treble', 'Treble kazandı', 'Aynı sezon lig, kupa ve Şampiyonlar Ligi kazanan takımda oynamış', 'treble kazanmadı', 'k'],
+  ['apps300', 'Tek kulüpte 300+ lig maçı', 'Bir kulüpte en az 300 lig maçına çıkmış', 'tek kulüpte 300 lig maçına çıkmadı', 'u'],
+  ['goals100', '100+ lig golü', 'Kariyerinde en az 100 lig golü atmış', '100 lig golüne ulaşmadı', 'k'],
+];
+
+/* Treble: aynı sezon lig + kupa + Avrupa Kupası/Şampiyonlar Ligi. [kulüp, sezonun bittiği yıl] */
+export const TREBLES = [
+  ['cel', 1967], ['aja', 1972], ['psv', 1988], ['mun', 1999], ['bar', 2009], ['int', 2010],
+  ['bay', 2013], ['bar', 2015], ['bay', 2020], ['mci', 2023], ['psg', 2025],
 ];
 
 /* futbol-sim-2627'nin elle doğrulanmış 2026-27 kadroları → güncel transferler.

@@ -9,7 +9,7 @@ import { makeCode, normalizeCode } from './codes.js';
 import { validateNick, sameNick, suggestNick } from './nickname.js';
 import { Game, gameShape } from './game.js';
 import { makeGrid } from './grid.js';
-import { playBotTurn, runRaceBot, pickBotName } from './bots.js';
+import { playBotTurn, runRaceBot, pickBotName, BOT_LEVELS, DEFAULT_LEVEL } from './bots.js';
 
 export const COLORS = ['blue', 'red', 'green', 'yellow'];
 export const SETTINGS = {
@@ -178,6 +178,7 @@ export class RoomManager {
         nick: m.nick,
         color: m.color,
         bot: m.bot,
+        level: m.level || null,
         online: m.online,
         host: m.pid === room.hostPid,
         elo: m.bot ? 1000 : (m.session?.elo ?? 1000),
@@ -222,12 +223,13 @@ export class RoomManager {
     return m;
   }
 
-  addBotMember(room) {
+  addBotMember(room, level) {
     const m = {
       pid: 'bot_' + randomBytes(4).toString('hex'),
       nick: pickBotName(room.members.map((x) => x.nick)),
       color: room.freeColor(),
       bot: true,
+      level: BOT_LEVELS[level] ? level : DEFAULT_LEVEL,
       online: true,
       joinedAt: Date.now(),
       session: null,
@@ -281,7 +283,7 @@ export class RoomManager {
   }
 
   /** Eşleştirmeden gelen grup için hazır oda; geri sayım hemen başlar. */
-  createQuick(entries, bots, size) {
+  createQuick(entries, bots, size, level) {
     const code = makeCode((c) => this.rooms.has(c) || this.closed.has(c));
     const room = new Room(this, code, quickSettings(size), true);
     this.rooms.set(code, room);
@@ -295,7 +297,7 @@ export class RoomManager {
       this.addMember(room, session, n);
       if (n !== nick) this.send(session, { t: 'event', kind: 'renamed', nick: n, from: nick });
     }
-    for (let k = 0; k < bots; k++) this.addBotMember(room);
+    for (let k = 0; k < bots; k++) this.addBotMember(room, level);
     room.hostPid = entries[0].session.pid;
     this.startCountdown(room);
     return room;
@@ -373,12 +375,12 @@ export class RoomManager {
     this.startCountdown(room);
   }
 
-  addBot(session) {
+  addBot(session, level) {
     const room = this.requireHost(session);
     if (room.status !== 'lobby' && room.status !== 'finished') throw new RoomError('bad_state', 'Maç sürerken bot eklenemez.');
     if (room.members.length >= room.settings.capacity) throw new RoomError('full', 'Oda dolu.');
-    const m = this.addBotMember(room);
-    this.event(room, { kind: 'joined', nick: m.nick, pid: m.pid, bot: true });
+    const m = this.addBotMember(room, level);
+    this.event(room, { kind: 'joined', nick: m.nick, pid: m.pid, bot: true, level: m.level });
     room.broadcast();
   }
 
@@ -432,7 +434,7 @@ export class RoomManager {
     }
     room.stopBots();
     room.game?.dispose();
-    const players = room.members.map((m) => ({ pid: m.pid, nick: m.nick, color: m.color, bot: m.bot }));
+    const players = room.members.map((m) => ({ pid: m.pid, nick: m.nick, color: m.color, bot: m.bot, level: m.level }));
     const { size } = gameShape(room.settings.mode, players.length, room.settings.win);
     // Seçilen mod için ızgara çıkmazsa diğer modları dene; hiçbiri olmazsa sunucu çökmesin, oyuncular uyarılsın.
     let grid = null;

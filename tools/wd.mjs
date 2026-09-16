@@ -7,7 +7,8 @@ import { dirname, join } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const CACHE = join(HERE, '.cache');
-const UA = 'FootballGrid-databuilder/1.0 (local hobby project)';
+// Wikimedia UA politikası iletişim adresi ister; adressiz UA daha sert kısıtlanıyor (429 + 50 sn bekleme)
+const UA = 'FootballGrid-databuilder/1.0 (https://github.com/erenapuhan18/footballgrid)';
 mkdirSync(CACHE, { recursive: true });
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

@@ -2,6 +2,7 @@ node_modules/
 tools/.cache/
 tools/bin/
 tools/*.log
+tools/audit.txt
 _shots/
 server/data/db.base.json
 *.log

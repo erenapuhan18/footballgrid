@@ -37,8 +37,17 @@ kurulurken seçilir; hızlı maçta 3 kişilik 3'leme, 4 kişilik en çok hücre
 
 **Başlık türleri:** kulüp · ülke (uyruk) · lig · **kupa** (Şampiyonlar Ligi, Avrupa Ligi/UEFA Kupası,
 Dünya Kupası, EURO, Süper Lig / Premier Lig / La Liga / Serie A / Bundesliga / Ligue 1 şampiyonluğu) ·
-**menajer** ("Mourinho ile çalışmış": kulüpte ya da milli takımda aynı dönemde) · **joker** (Ballon d'Or,
-Dünya Kupası'nda oynamış, 2000 sonrası / 1980 öncesi doğumlu, 8+ takım, sonradan teknik direktör) · mevki (Uzman).
+**menajer** ("Mourinho ile çalışmış": kulüpte ya da milli takımda aynı dönemde) · **takım arkadaşı**
+("Hagi ile oynadı": aynı kulüpte, aynı dönemde) · **joker** · mevki (Uzman).
+
+Başlıklar dengeli dağılır: bir ızgaranın 2×3 (ya da 2×4) başlığının yarısından azı kulüptür, geri kalanı
+farklı türlerden birer tane — ızgara "full takım" olmaz.
+
+**Jokerler:** Ballon d'Or · Dünya Kupası'nda oynamış · 2+ Şampiyonlar Ligi · 3+ kez Süper Lig / Premier Lig /
+La Liga / Serie A / Bundesliga şampiyonu · 5 büyük ligin 2+'sinde şampiyon · 5 büyük ligin 3+'ünde ve 4+'ünde
+oynamış · treble kazanmış · tek kulüpte 300+ lig maçı · 100+ lig golü · 1970'lerde / 80'lerde / 90'larda /
+2000 sonrası doğumlu · 8+ takım · sonradan teknik direktör · GS-FB-BJK'den en az ikisi · Süper Lig'de oynamış
+yabancı · yurt dışında oynamış Türk.
 
 - **Klasik:** herkesin bildiği kulüpler + ülke, lig, kupa, menajer ve joker karışımı. Her ızgarada en az
   bir Türk büyüğü bulunur; Fenerbahçe ve Beşiktaş öne çıkar.
@@ -70,7 +79,7 @@ Dünya Kupası'nda oynamış, 2000 sonrası / 1980 öncesi doğumlu, 8+ takım, 
 - Host ayrılırsa yetki en eski oyuncuya geçer (👑). Host 15 sn bağlantısız kalırsa da devredilir.
 - Bağlantısı kopan oyuncu lobide 45 sn, maçta 90 sn bekletilir; maçta sırası 5 sn'de geçer.
 - Odada hiç insan kalmayınca oda kapanır; kod 2 saat "kapatıldı" olarak hatırlanır.
-- Host oda dolmadan da başlatabilir (en az 2 oyuncu) ve boş koltuğa bot ekleyebilir.
+- Host oda dolmadan da başlatabilir (en az 2 oyuncu) ve boş koltuğa **Kolay / Orta / Zor** seviyede bot ekleyebilir.
 
 ## Takma ad (madde 7)
 
@@ -83,7 +92,7 @@ Eşleştirmede aynı adlı iki kişi buluşursa ikincisi otomatik `Arda2` olur.
 
 2 / 3 / 4 kişilik kuyruklar. Ekranda bekleyen oyuncu sayısı, ortalama bekleme (gerçek bekleme
 sürelerinin üstel ortalaması) ve geçen süre. Kuyruk dolunca oda kendiliğinden kurulur, 3 sn geri
-sayımla maç başlar. 45 sn'de rakip çıkmazsa **Botlarla başla** seçeneği gelir (o anda kuyruktaki
+sayımla maç başlar. 45 sn'de rakip çıkmazsa **Botlarla başla** seçeneği gelir (seviyesini sen seçersin; o anda kuyruktaki
 diğer insanlar önce alınır).
 
 ## Güvenlik
@@ -95,35 +104,46 @@ katılma/sorgulama (kod tahminine karşı) · IP başına 40 bağlantı · kulla
 
 ## Veri
 
-Şu anki derleme (2026-09-15): **49.988 futbolcu** (12.440'ı tanınmış, en az 15 Wikipedia maddesi),
-104 kulüp, 70 milli takım, 10 lig. Her modda 150 denemede 150 ızgara üretiliyor (~1 ms).
+Şu anki derleme (2026-09-16): **50.140 futbolcu** (12.439'u tanınmış, en az 15 Wikipedia maddesi),
+104 kulüp, 69 milli takım, 10 lig, 133 menajer, 59 takım arkadaşı başlığı, 21 joker.
+Her modda 150 denemede 150 ızgara üretiliyor (~2 ms).
 
-Futbolcu veritabanı **Wikidata**'dan (CC0) derlenir: kulüp üyeliği (P54, tüm kariyer), uyruk
-(P27 + P1532 + milli takımda oynamak), mevki (P413), lig (kulübün lig üyeliği P118 + lig sezonlarının
-katılımcıları P3450/P1923).
+Futbolcu veritabanı **Wikidata**'dan (CC0) derlenir, **İngilizce Wikipedia** bilgi kutularıyla (CC BY-SA) düzeltilir:
+kulüp kariyeri, uyruk (temsil ettiği milli takım), mevki (P413), doğum yılı, lig (sezon sezon).
 
 ```bash
 npm run data:resolve   # katalog adları → Wikidata kimlikleri (tools/resolved.json)
 npm run data:build     # SPARQL → server/data/db.json   (yanıtlar tools/.cache'e yazılır)
-npm run data:enrich    # kariyer tarihleri, kupalar, menajerler, jokerler, 2026-27 kadroları
+npm run data:enrich    # Wikipedia kariyerleri, lig sezonları, kupalar, menajerler, jokerler, 2026-27 kadroları
+node tools/facts.mjs   # bilinen kariyer gerçekleri (5 büyük lig + Süper Lig): ✓/✗
+node tools/audit.mjs   # db.json ↔ Wikipedia bilgi kutuları fark raporu → tools/audit.txt
 ```
 
 `data:enrich` tabanı `db.base.json` olarak saklar ve üstüne şunları ekler:
-- **Kariyer tarihleri** (P54 başlangıç/bitiş). Bitişi eksik dönem bir sonraki kulübün başladığı yerde kapanır.
-- **Kupalar:** sezon kazananı (P1346) kulüpte, final tarihinde kadrodaysa kazanmış sayılır. Wikidata'da kazananı
-  boş olan son sezonlar (ör. 2019-20 → 2025-26 Süper Lig) Wikipedia sezon sayfasının bilgi kutusundan tamamlanır.
-  Milli takım kupalarında turnuvaya katılım (P1344) + o milli takımda oynamak aranır.
-- **Menajerler:** kulüp ve milli takımların baş antrenör dönemleri (P286) ile oyuncunun dönemi en az ~2 ay çakışmalı.
-  Türk büyüklerini ya da milli takımı çalıştırmış hocalar her zaman listede.
+- **A takım kariyeri (Wikipedia bilgi kutusu):** Wikidata P54 altyapı ve B takımı dönemlerini de ana kulübe yazabiliyor,
+  yeni transferlerde de geride kalıyor. Bilgi kutusunun satırlarının çoğu Wikidata'ya eşlenebiliyorsa kulüpler, yıllar
+  ve kiralıklar ondan alınır; yalnız altyapısında bulunulan kulüp sayılmaz. Kutu yoksa P54 başlangıç/bitişi kullanılır
+  (bitişi eksik dönem bir sonraki kulübün başladığı yerde kapanır).
+- **Lig, sezon sezon:** oyuncu oradayken kulüp o ligde miydi? Katılımcılar Wikidata P1923 + sezon maddesinin puan
+  tablosu. Premier Lig kurulmadan (1992) önce oynayan ya da kulübün alt lig yıllarında oynayan "o ligde oynadı" sayılmaz.
+- **Uyruk:** temsil ettiği A milli takım(lar)ı; A takımda oynamadıysa altyapı milli takımı; o da yoksa vatandaşlık
+  (Messi yalnız Arjantin, Özil yalnız Almanya, Çalhanoğlu yalnız Türkiye).
+- **Doğum yılı:** Wikidata'da yoksa, akla yatmıyorsa ya da bilgi kutusundan farklıysa bilgi kutusundaki yıl.
+- **Kupalar:** sezon kazananı (P1346) kulüpte, final tarihinde kadrodaysa kazanmış sayılır; o sırada başka kulüpte
+  kiralıksa sayılmaz. Wikidata'da kazananı boş olan son sezonlar (ör. 2019-20 → 2025-26 Süper Lig) Wikipedia sezon
+  sayfasının bilgi kutusundan tamamlanır. Milli takım kupalarında turnuvaya katılım (P1344) + o milli takımda oynamak aranır.
+- **Menajerler:** kulüp ve milli takımların baş antrenör dönemleri (P286) ile oyuncunun dönemi (başka kulüpteki kiralık
+  süresi düşülerek) en az ~2 ay çakışmalı. Türk büyüklerini ya da milli takımı çalıştırmış hocalar her zaman listede.
 - **Güncel transferler:** `../futbol-sim-2627` içindeki elle doğrulanmış 2026-27 kadroları (Türk kulüpleri + Avrupa'nın
-  16 devi) isim + doğum yılıyla eşlenir; Wikidata'da henüz işlenmemiş transferler de oyuna girer.
+  16 devi) isim + doğum yılıyla eşlenir. Yazım farkı (Mohamed/Muhammed Salah, Eljif/Elif Elmas) soyad + doğum yılı +
+  uyruk + benzer ilk adla yakalanır; oyuncu iki kez eklenmez, kadrodaki yazım arama adı olur.
 
 Katalog (kulüpler, renkler, bayraklar, ligler): `tools/catalog.mjs`. Yanlış eşleşen bir kaydı
 `resolved.json`'da düzeltip `"manual": true` eklersen korunur.
 
-Bilinen sınırlar: Wikidata'da eksik kariyer kaydı olan futbolcu reddedilebilir. "Lig" şartı, o ligde yer
-almış bir kulüpte oynamak demektir (kulübün o sırada hangi ligde olduğuna bakılmaz). Çifte
-vatandaşlık sayılır. Birleşik Krallık vatandaşı, İskoçya/Galler/K. İrlanda işareti yoksa İngiltere sayılır.
+Bilinen sınırlar: Wikipedia maddesi ya da bilgi kutusu olmayan futbolcuda Wikidata kaydı olduğu gibi kullanılır; tarihsiz
+dönemde lig doğrulanamaz, eski kayıt kalır. Yalnız katalog dışı bir milli takımda (Yugoslavya, Yeşil Burun …) oynamış
+futbolcunun vatandaşlığı sayılır. Birleşik Krallık vatandaşı, İskoçya/Galler/K. İrlanda işareti yoksa İngiltere sayılır.
 
 ## Testler
 
@@ -144,7 +164,7 @@ server/
   game.js         maç motoru (sıra, süre, cevap doğrulama, üçlü dizi, hücre çalma, sonuç)
   grid.js         mod başına çözülebilir ızgara üretici
   db.js           futbolcu veritabanı, bit kümeleriyle hücre sayımı, Türkçe katlamalı arama
-  bots.js         botlar (kazan/blokla stratejisi, moda göre isabet)
+  bots.js         botlar: Kolay/Orta/Zor (isabet, liste derinliği, düşünme süresi, kazan/blokla)
   nickname.js     takma ad kuralları ve küfür süzgeci
   codes.js        oda kodu üretimi ve normalleştirme
 public/           istemci (derleme adımı yok): app.js ekranlar, gameview.js maç, net.js bağlantı,
@@ -172,7 +192,7 @@ Oda kurarken seçilir; host lobide **AYARLAR** ile maçtan önce (ve rövanştan
 | Oyun modu | Klasik · Hızlı · Uzman |
 | Oyun tarzı | **Sırayla** (tur süresi 15/30/45/60 sn) · **Aynı anda** (sıra yok, ilk doğru bilen kapar, yanlış cevaba 3 sn ceza; maç süresi 1/2/3/5 dk) |
 | Kazanma şekli | 3'leme · En çok hücre (3-4 kişide) |
-| İpucu | Açık: maç başına 1 (olası bir cevabın baş harfleri, harf sayısı, doğum yılı, uyruğu) · Kapalı |
+| İpucu | Açık: maç başına 1 (yakın dönemden olası bir cevabın uyruğu, mevkisi, yaşı) · Kapalı |
 | Aynı futbolcu | Bir kez · Tekrar olur |
 
 Derbi ve Türkiye jokerleri: "GS · FB · BJK en az ikisinde oynadı", "Süper Lig'de oynamış yabancı", "Yurt dışında

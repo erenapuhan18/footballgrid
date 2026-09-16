@@ -158,9 +158,10 @@ test('eşleştirme: bekleme süresi dolunca botlarla başlar, botlar oynar', asy
   await a.req('queue/join', { size: 3, nick: 'Yalnız' });
   await assert.rejects(a.req('queue/bots'), (e) => e.code === 'too_soon');
   app.sessions.byPublic(a.hello.pid).queue.since -= 60_000;
-  await a.req('queue/bots');
+  await a.req('queue/bots', { level: 'zor' });
   const r = await a.room((x) => x.status === 'countdown');
   assert.equal(r.members.filter((m) => m.bot).length, 2);
+  assert.ok(r.members.filter((m) => m.bot).every((m) => m.level === 'zor'), 'seçilen bot seviyesi botlara geçer');
   const playing = await a.room((x) => x.status === 'playing', 6000);
   assert.equal(playing.game.size, 4);
   // Sıra bir bottaysa bot kendi hamlesini yapar; sıra bizdeyse pas geçip botu bekleriz.
@@ -201,7 +202,7 @@ test('ayarlar: host lobide değiştirir; ipucu ve oyuncu kartı uçları', async
   const playing = await a.room((x) => x.status === 'playing', 6000);
   const cur = playing.game.turn.pid === a.hello.pid ? a : b;
   const hint = await cur.req('game/hint', { cell: 0 });
-  assert.ok(hint.hint.initials.includes('.'));
+  assert.ok(Array.isArray(hint.hint.nats) && Array.isArray(hint.hint.pos));
   // /i bayrağı Türkçe İ'yi i ile eşlemez → düz metin
   await assert.rejects(cur.req('game/hint', { cell: 1 }), (e) => e.message.includes('hakkını'));
 

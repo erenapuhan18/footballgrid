@@ -371,6 +371,17 @@ function showStats() {
   );
 }
 
+/** Bot seviyesi seçtirir (lobide ve kuyrukta). */
+function askBotLevel(pick) {
+  const btn = (level, label, cls) => (close) =>
+    h('button', { class: `btn ${cls} small`, on: { click: () => { close(); pick(level); } } }, label);
+  modal(
+    'BOT SEVİYESİ',
+    h('p', {}, 'Kolay yalnız çok tanınmış futbolcuları bilir, yavaş oynar. Orta dengelidir. Zor derin listeden seçer, kazanan ya da engelleyen hücreyi kaçırmaz.'),
+    { actions: [btn('kolay', 'KOLAY', 'ghost'), btn('orta', 'ORTA', 'ghost'), btn('zor', 'ZOR', 'primary')] },
+  );
+}
+
 function showRules() {
   modal(
     'NASIL OYNANIR?',
@@ -388,7 +399,7 @@ function showRules() {
       h('h4', {}, 'MODLAR VE AYARLAR'),
       h('ul', { class: 'modes' },
         Object.values(MODE).map((m) => h('li', {}, h('b', {}, m.name), ' — ', m.desc)),
-        h('li', {}, h('b', {}, 'İpucu'), ' — açıksa maç başına 1 kez: olası bir cevabın baş harfleri, doğum yılı ve uyruğu.'),
+        h('li', {}, h('b', {}, 'İpucu'), ' — açıksa maç başına 1 kez: yakın dönemden olası bir cevabın uyruğu, mevkisi ve yaşı.'),
         h('li', {}, h('b', {}, 'Aynı futbolcu'), ' — "bir kez" seçiliyse bir futbolcu maçta yalnızca bir hücrede kullanılır.')),
       h('p', { class: 'hint' },
         `Veri: Wikidata'daki kariyer geçmişleri${S.db ? ` (${S.db.players.toLocaleString('tr-TR')} futbolcu)` : ''} ve güncel kadrolar. ` +
@@ -508,12 +519,14 @@ function SearchingScreen() {
     S.queue = null;
     show('quick');
   }
-  async function withBots() {
-    try {
-      await net.request('queue/bots');
-    } catch (e) {
-      toast(e.message, 'error');
-    }
+  function withBots() {
+    askBotLevel(async (level) => {
+      try {
+        await net.request('queue/bots', { level });
+      } catch (e) {
+        toast(e.message, 'error');
+      }
+    });
   }
   update();
   tick();
@@ -670,7 +683,7 @@ function LobbyScreen() {
           h('span', { class: 'nick' }, m.nick),
           m.host ? h('span', { class: 'crown', title: 'Host', 'aria-label': 'Host' }, '👑') : null,
           m.pid === me ? h('span', { class: 'you' }, 'SEN') : null,
-          m.bot ? h('span', { class: 'tag' }, 'BOT') : null,
+          m.bot ? h('span', { class: 'tag' }, m.level ? `BOT · ${m.level.toLocaleUpperCase('tr')}` : 'BOT') : null,
           m.online ? null : h('span', { class: 'tag' }, 'bağlantı yok'),
           isHost && m.bot
             ? h('button', { class: 'icon-btn tiny', 'aria-label': `${m.nick} botunu çıkar`, on: { click: () => net.request('room/removeBot', { pid: m.pid }).catch((e) => toast(e.message, 'error')) } }, '✕')
@@ -686,7 +699,10 @@ function LobbyScreen() {
         h('div', { class: 'row2' },
           h('button', { class: 'btn ghost small', on: { click: editSettings } }, 'AYARLAR'),
           free > 0
-            ? h('button', { class: 'btn ghost small', on: { click: () => net.request('room/addBot').catch((e) => toast(e.message, 'error')) } }, '+ BOT EKLE')
+            ? h('button', {
+                class: 'btn ghost small',
+                on: { click: () => askBotLevel((level) => net.request('room/addBot', { level }).catch((e) => toast(e.message, 'error'))) },
+              }, '+ BOT EKLE')
             : h('span')),
       );
     } else {

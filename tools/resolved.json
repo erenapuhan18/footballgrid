@@ -4,6 +4,7 @@
       "qid": "Q495299",
       "label": "Galatasaray S.K.",
       "desc": "Turkish association football team",
+      "extra": ["Q43134"],
       "manual": true
     },
     "bjk": {
@@ -515,7 +516,7 @@
       "label": "Fenerbahçe Istanbul",
       "desc": "association football section of multi-sports club Fenerbahçe SK",
       "n": 652,
-      "extra": [],
+      "extra": ["Q19648"],
       "others": [
         "Q19648:39",
         "Q726288:0",
