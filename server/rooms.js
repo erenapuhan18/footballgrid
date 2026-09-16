@@ -16,9 +16,10 @@ export const SETTINGS = {
   capacity: [2, 3, 4],
   mode: ['klasik', 'hizli', 'uzman'],
   turnTime: [15, 30, 45, 60],
-  win: ['line3', 'most'],
+  win: ['line3', 'most', 'points'],
   style: ['turn', 'race'],
   matchTime: [60, 120, 180, 300],
+  rounds: [1, 3, 5], // turnuva: kaç maçlık seri
 };
 /** Hızlı maç: sırayla, 3 kişide 3'leme, 4 kişide en çok hücre, ipucu açık, aynı futbolcu bir kez. */
 export const quickSettings = (size) => ({
@@ -47,8 +48,9 @@ function normSettings(s = {}) {
     capacity,
     mode: SETTINGS.mode.includes(s.mode) ? s.mode : 'klasik',
     turnTime: num(s.turnTime, SETTINGS.turnTime, 30),
-    // 2 kişide kural hep 3'leme; 3 kişide varsayılan 3'leme, 4 kişide en çok hücre
-    win: capacity === 2 ? 'line3' : SETTINGS.win.includes(s.win) ? s.win : capacity === 3 ? 'line3' : 'most',
+    // 2 kişide 3'leme ya da nadirlik puanı; 3 kişide varsayılan 3'leme, 4 kişide en çok hücre
+    win: capacity === 2 ? (s.win === 'points' ? 'points' : 'line3') : SETTINGS.win.includes(s.win) ? s.win : capacity === 3 ? 'line3' : 'most',
+    rounds: num(s.rounds, SETTINGS.rounds, 1),
     style: SETTINGS.style.includes(s.style) ? s.style : 'turn',
     matchTime: num(s.matchTime, SETTINGS.matchTime, 180),
     hints: s.hints === undefined ? true : s.hints === true || s.hints === 'true',
@@ -67,6 +69,8 @@ class Room {
     this.hostPid = null;
     this.game = null;
     this.round = 0;
+    this.series = { total: settings.rounds || 1, played: 0, wins: {} }; // turnuva: maç sayısı ve kim kaç maç kazandı
+    this.watchers = new Set(); // izleyiciler: oda anlık görüntüsünü alırlar, oynayamazlar
     this.lastGrid = new Set();
     this.startsAt = null;
     this.countdownTimer = null;
@@ -173,6 +177,8 @@ export class RoomManager {
       hostPid: room.hostPid,
       startsAt: room.startsAt,
       round: room.round,
+      series: room.series,
+      watchers: room.watchers.size,
       members: room.members.map((m) => ({
         pid: m.pid,
         nick: m.nick,
@@ -190,11 +196,13 @@ export class RoomManager {
   sendRoom(room) {
     const msg = JSON.stringify({ t: 'room', room: this.snapshot(room) });
     for (const m of room.members) if (m.session) this.send(m.session, msg);
+    for (const s of room.watchers) this.send(s, msg);
   }
 
   event(room, e) {
     const msg = JSON.stringify({ t: 'event', ...e });
     for (const m of room.members) if (m.session) this.send(m.session, msg);
+    for (const s of room.watchers) this.send(s, msg);
   }
 
   /* ───────── üyelik */
@@ -280,6 +288,25 @@ export class RoomManager {
     this.event(room, { kind: 'joined', nick: v.nick, pid: session.pid });
     room.broadcast();
     return room;
+  }
+
+  /** İzleyici: oda dolu ya da maç başlamış olsa da anlık görüntüyü alır, oynayamaz. */
+  watch(session, rawCode) {
+    const room = this.lookup(rawCode);
+    if (room.member(session.pid)) return room; // zaten oyuncu
+    this.detach(session);
+    this.unwatch(session);
+    room.watchers.add(session);
+    session.watchCode = room.code;
+    this.send(session, { t: 'room', room: this.snapshot(room) });
+    room.broadcast();
+    return room;
+  }
+
+  unwatch(session) {
+    const room = session.watchCode ? this.rooms.get(session.watchCode) : null;
+    session.watchCode = null;
+    if (room?.watchers.delete(session)) room.broadcast();
   }
 
   /** Eşleştirmeden gelen grup için hazır oda; geri sayım hemen başlar. */
@@ -401,6 +428,7 @@ export class RoomManager {
       throw new RoomError('bad_capacity', `Odada ${room.members.length} oyuncu var; kapasite bundan az olamaz.`);
     }
     room.settings = next;
+    if (next.rounds !== room.series.total) room.series = { total: next.rounds, played: 0, wins: {} }; // seri baştan başlar
     room.touch();
     this.event(room, { kind: 'settings' });
     room.broadcast();
@@ -468,8 +496,11 @@ export class RoomManager {
     game.on('race', () => {
       room.raceBots = room.members.filter((m) => m.bot).map((m) => runRaceBot(game, m.pid));
     });
-    game.on('end', () => {
+    game.on('end', (result) => {
       room.status = 'finished';
+      // Turnuva: maçı kazanan seride bir puan alır (beraberlikte kimse almaz)
+      room.series.played++;
+      if (result?.winners?.length === 1) room.series.wins[result.winners[0]] = (room.series.wins[result.winners[0]] || 0) + 1;
       room.stopBots();
       room.touch();
     });
@@ -491,6 +522,7 @@ export class RoomManager {
   /* ───────── bağlantı */
 
   onDisconnect(session) {
+    this.unwatch(session); // izleyiciyse listeden düş
     const room = this.roomOf(session);
     const m = room?.member(session.pid);
     if (!m) return;

@@ -56,7 +56,8 @@ export const store = {
     const me = result.standings.find((x) => x.pid === myPid);
     if (!me) return null;
     const won = result.winners.includes(myPid);
-    const outcome = won && !result.draw ? 'win' : won && result.draw ? 'draw' : 'loss';
+    // Kazanan yoksa (3'lemede kimse üçleyemedi) herkes için beraberlik
+    const outcome = !result.draw && won ? 'win' : result.draw && (won || !result.winners.length) ? 'draw' : 'loss';
 
     // Elo: her rakibe karşı sıralamaya göre 1 / 0.5 / 0; çok kişilide K bölünür.
     const opps = result.standings.filter((x) => x.pid !== myPid);

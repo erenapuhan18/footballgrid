@@ -82,6 +82,7 @@ yabancı · yurt dışında oynamış Türk. Her jokerin ızgarada kendi kısa i
 - Bağlantısı kopan oyuncu lobide 45 sn, maçta 90 sn bekletilir; maçta sırası 5 sn'de geçer.
 - Odada hiç insan kalmayınca oda kapanır; kod 2 saat "kapatıldı" olarak hatırlanır.
 - Host oda dolmadan da başlatabilir (en az 2 oyuncu) ve boş koltuğa **Kolay / Orta / Zor** seviyede bot ekleyebilir.
+- Oda doluysa ya da maç başladıysa **İZLE** ile izleyici olarak girilir: ızgarayı ve skoru canlı görürsün, cevap veremezsin.
 
 ## Takma ad (madde 7)
 
@@ -193,7 +194,8 @@ Oda kurarken seçilir; host lobide **AYARLAR** ile maçtan önce (ve rövanştan
 | Oyuncu sayısı | 2 · 3 · 4 |
 | Oyun modu | Klasik · Hızlı · Uzman |
 | Oyun tarzı | **Sırayla** (tur süresi 15/30/45/60 sn) · **Aynı anda** (sıra yok, ilk doğru bilen kapar, yanlış cevaba 3 sn ceza; maç süresi 1/2/3/5 dk) |
-| Kazanma şekli | 3'leme · En çok hücre (3-4 kişide) |
+| Kazanma şekli | **3'leme** (üçleyen yoksa berabere) · **En çok hücre** (3-4 kişide) · **Nadirlik puanı** (az bilinen doğru cevap çok puan: 10-100) |
+| Maç sayısı | Tek maç · 3 maçlık seri · 5 maçlık seri (turnuva: en çok maçı kazanan şampiyon) |
 | İpucu | Açık: maç başına 1 (yakın dönemden olası bir cevabın uyruğu, mevkisi, yaşı) · Kapalı |
 | Aynı futbolcu | Bir kez · Tekrar olur |
 

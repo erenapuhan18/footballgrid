@@ -20,7 +20,8 @@ export function gameShape(mode, n, win) {
   return {
     size,
     maxTurns: Math.ceil((cells * factor) / n) * n,
-    lineWin: n === 2 || win === 'line3',
+    lineWin: win !== 'points' && (n === 2 || win === 'line3'),
+    pointWin: win === 'points', // nadirlik puanı: az bilinen doğru cevap daha çok puan
     steal: mode === 'uzman',
   };
 }
@@ -225,6 +226,15 @@ export class Game extends EventEmitter {
       Object.assign(c, { owner: pid, fid, name: player.name, locked: !!from });
       me.stats.correct++;
       if (from) me.stats.steals++;
+      if (this.pointWin) {
+        // Nadirlik puanı: hücreye uyanlar arasında cevap ne kadar az tanınmışsa o kadar çok puan (10-100)
+        const [pr, pc] = this.catsOf(cell);
+        const total = this.db.count(pr, pc);
+        const above = this.db.count(pr, pc, player.i); // bu cevaptan daha tanınmış kaç uygun futbolcu var
+        const pts = Math.round(10 + 90 * (total > 1 ? Math.min(1, above / (total - 1)) : 0));
+        me.stats.points = (me.stats.points || 0) + pts;
+        this.cells[cell].pts = pts;
+      }
       this.pushLog({ kind: from ? 'steal' : 'correct', pid, cell, name: player.name, from });
       const line = this.lineWin ? this.findLine(pid) : null;
       if (line) {
@@ -322,13 +332,18 @@ export class Game extends EventEmitter {
       winners = [this.cells[this.winLine[0]].owner];
     } else if (reason === 'forfeit') {
       winners = active.map((p) => p.pid);
+    } else if (this.lineWin) {
+      // 3'leme kuralı: üçleyen yoksa beraberlik — ilk başlayan fazladan hücreyle kazanmış sayılmasın
+      winners = [];
     } else {
-      const best = Math.max(0, ...active.map((p) => this.cellsOf(p.pid)));
-      winners = best === 0 ? [] : active.filter((p) => this.cellsOf(p.pid) === best).map((p) => p.pid);
+      const val = this.pointWin ? (p) => p.stats.points || 0 : (p) => this.cellsOf(p.pid);
+      const best = Math.max(0, ...active.map(val));
+      winners = best === 0 ? [] : active.filter((p) => val(p) === best).map((p) => p.pid);
     }
 
     const all = [...this.players.values()];
-    const score = (p) => (winners.includes(p.pid) ? 1000 : 0) + (p.left ? -500 : 0) + this.cellsOf(p.pid) * 10 + p.stats.correct;
+    const score = (p) =>
+      (winners.includes(p.pid) ? 1000 : 0) + (p.left ? -500 : 0) + (this.pointWin ? p.stats.points || 0 : this.cellsOf(p.pid) * 10) + p.stats.correct;
     all.sort((a, b) => score(b) - score(a));
     let rank = 0;
     let prev = null;
@@ -376,6 +391,7 @@ export class Game extends EventEmitter {
       size: this.size,
       steal: this.steal,
       lineWin: this.lineWin,
+      pointWin: this.pointWin,
       reuse: this.reuse,
       hints: this.hints,
       maxTurns: this.maxTurns,
@@ -390,7 +406,7 @@ export class Game extends EventEmitter {
       order: this.order,
       players: [...this.players.values()].map((p) => ({
         pid: p.pid, nick: p.nick, color: p.color, bot: p.bot, level: p.level, left: p.left, online: p.online,
-        cells: this.cellsOf(p.pid), correct: p.stats.correct, wrong: p.stats.wrong,
+        cells: this.cellsOf(p.pid), points: p.stats.points || 0, correct: p.stats.correct, wrong: p.stats.wrong,
         hintUsed: p.hintUsed, cooldownUntil: p.cooldownUntil,
       })),
       log: this.log.slice(-8),

@@ -207,6 +207,11 @@ export function createApp({
       return { code: rooms.join(s, m.code, m.nick).code };
     },
     'room/leave': (s) => void rooms.leave(s),
+    'room/watch': (s, m, ctx) => {
+      limitJoin(ctx.ip);
+      return { code: rooms.watch(s, m.code).code };
+    },
+    'room/unwatch': (s) => void rooms.unwatch(s),
     'room/start': (s) => void rooms.start(s),
     'room/addBot': (s, m) => void rooms.addBot(s, String(m.level ?? '')),
     'room/removeBot': (s, m) => void rooms.removeBot(s, String(m.pid ?? '')),

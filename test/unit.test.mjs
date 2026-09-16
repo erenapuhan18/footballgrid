@@ -197,7 +197,9 @@ function sharedPlayer(g) {
 }
 
 test('maç şekli: oyuncu sayısı, mod ve kazanma kuralına göre', () => {
-  assert.deepEqual(gameShape('klasik', 2), { size: 3, maxTurns: 16, lineWin: true, steal: false });
+  assert.deepEqual(gameShape('klasik', 2), { size: 3, maxTurns: 16, lineWin: true, pointWin: false, steal: false });
+  assert.equal(gameShape('klasik', 2, 'points').lineWin, false, 'nadirlik puanında 3leme aranmaz');
+  assert.equal(gameShape('klasik', 2, 'points').pointWin, true);
   assert.equal(gameShape('klasik', 3).size, 4);
   assert.equal(gameShape('klasik', 3, 'line3').lineWin, true);
   assert.equal(gameShape('klasik', 3, 'most').lineWin, false);
@@ -266,7 +268,7 @@ test("maç: 'en çok hücre' kuralında üçlü dizi maçı bitirmez", () => {
   g.dispose();
 });
 
-test('maç: aynı anda modu — sıra yok, ilk doğru bilen kapar, yanlışa 3 sn ceza, süre bitince en çok hücre', async () => {
+test('maç: aynı anda modu — sıra yok, ilk doğru bilen kapar, yanlışa 3 sn ceza, süre bitince üçleyen yoksa berabere', async () => {
   const g = newGame('klasik', 2, 30, undefined, { style: 'race', matchTime: 0.3 });
   const [a, b] = g.order;
   assert.equal(g.turn, null);
@@ -281,7 +283,10 @@ test('maç: aynı anda modu — sıra yok, ilk doğru bilen kapar, yanlışa 3 s
   await sleep(400);
   assert.equal(g.over, true);
   assert.equal(g.result.reason, 'time');
-  assert.deepEqual(g.result.winners, [b]);
+  // 2 kişide kural 3'leme: üçleyen yoksa hücre sayısına bakılmaz, maç berabere biter
+  assert.deepEqual(g.result.winners, []);
+  assert.equal(g.result.draw, true);
+  assert.equal(g.cellsOf(b), 1);
   g.dispose();
 });
 
@@ -320,6 +325,27 @@ test('maç: ipucu — maç başına bir kez, sırayı yakmaz, kapalıysa verilme
   const off = newGame('klasik', 2, 30, undefined, { hints: false });
   assert.equal(off.hint(off.turn.pid, 0).error, 'Bu odada ipucu kapalı.');
   off.dispose();
+});
+
+test('maç: nadirlik puanı — az bilinen cevap çok puan, kazanan puana göre', () => {
+  const g = newGame('klasik', 2, 30, 'points');
+  assert.equal(g.pointWin, true);
+  assert.equal(g.lineWin, false, 'nadirlik puanında üçleme aranmaz');
+  const a = g.turn.pid;
+  const b = g.order.find((x) => x !== a);
+  const pick = (cell, last) => {
+    const [r, c] = g.catsOf(cell);
+    const list = db.answers(r, c, 999, g.used);
+    return last ? list.at(-1) : list[0];
+  };
+  assert.equal(g.answer(a, 0, pick(0, true).i).correct, true); // en az tanınmış cevap
+  assert.equal(g.answer(b, 1, pick(1, false).i).correct, true); // en tanınmış cevap
+  const pts = (pid) => g.players.get(pid).stats.points;
+  assert.ok(pts(a) > pts(b), `nadir cevap daha çok puan: ${pts(a)} > ${pts(b)}`);
+  assert.ok(pts(b) >= 10 && pts(a) <= 100);
+  while (!g.over) g.pass(g.turn.pid);
+  assert.deepEqual(g.result.winners, [a], 'hücre sayısı eşitken puan kazandırır');
+  g.dispose();
 });
 
 test('maç: hamle sınırı dolunca en çok hücre kapan kazanır', () => {

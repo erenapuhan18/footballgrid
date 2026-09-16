@@ -359,12 +359,27 @@ export function GameScreen(ctx) {
     const isHost = room.hostPid === my;
     const won = r.winners.includes(my);
     const winner = r.winners.length === 1 ? r.standings.find((p) => p.pid === r.winners[0]) : null;
-    const title = r.draw ? (r.winners.length ? 'Berabere' : 'Kazanan yok') : won ? 'Kazandın!' : `${winner?.nick ?? ''} kazandı`;
+    const title = r.draw ? 'Berabere' : won ? 'Kazandın!' : `${winner?.nick ?? ''} kazandı`;
     const row = [];
     if (room.quick) row.push(h('button', { class: 'btn', on: { click: () => ctx.requeue(room.settings.capacity) } }, 'YENİ RAKİP BUL'));
     row.push(h('button', { class: 'btn', on: { click: () => ctx.leave() } }, 'ANA SAYFA'));
+    // Turnuva serisi: durum ve seri bitince şampiyon
+    const ser = room.series;
+    let serLine = null;
+    if (ser && ser.total > 1) {
+      const tally = room.members.map((m) => `${m.nick} ${ser.wins[m.pid] || 0}`).join(' · ');
+      const best = Math.max(0, ...room.members.map((m) => ser.wins[m.pid] || 0));
+      const champs = room.members.filter((m) => best > 0 && (ser.wins[m.pid] || 0) === best).map((m) => m.nick);
+      serLine =
+        ser.played >= ser.total
+          ? champs.length === 1
+            ? `Seri bitti · şampiyon ${champs[0]} · ${tally}`
+            : `Seri bitti · berabere · ${tally}`
+          : `Seri ${ser.played}/${ser.total} · ${tally}`;
+    }
     put(results,
       h('div', { class: `rhead${won && !r.draw ? ' win' : ''}` }, h('h2', {}, title), h('p', {}, REASON[r.reason] || '')),
+      serLine ? h('p', { class: 'hint center' }, serLine) : null,
       h('ol', { class: 'standings' }, ...r.standings.map((p) =>
         h('li', { dataset: { color: p.color } },
           h('span', { class: 'rk' }, `${p.rank}.`),
@@ -425,11 +440,13 @@ export function GameScreen(ctx) {
         h('span', { class: 'nick' }, p.nick),
         p.pid === my && g.players.length <= 2 ? h('span', { class: 'you' }, 'SEN') : null,
         p.bot ? h('span', { class: 'bot', 'aria-label': 'bot' }, '🤖') : null,
-        h('span', { class: 'cnt' }, String(p.cells)))));
+        h('span', { class: 'cnt', title: g.pointWin ? `${p.cells} hücre` : 'kapılan hücre' }, String(g.pointWin ? p.points ?? 0 : p.cells)))));
 
+    const watching = !g.players.some((p) => p.pid === my); // izleyici: oynamaz, yalnız görür
     banner.dataset.color = race ? meP?.color || '' : cur?.color || '';
-    banner.classList.toggle('mine', playing);
+    banner.classList.toggle('mine', playing && !watching);
     if (g.over) btxt.textContent = 'Maç bitti.';
+    else if (watching) btxt.textContent = cur ? `İzliyorsun · sıra ${cur.nick}` : 'İzliyorsun · maç sürüyor';
     else if (race) {
       btxt.textContent =
         cd > 0 ? `Yanlış cevap cezası · ${Math.ceil(cd / 1000)} sn bekle` : sel !== null ? `${cellName(sel)} — yaz, listeden seç` : 'Aynı anda! Bir hücre seç, ilk doğru bilen kapar.';

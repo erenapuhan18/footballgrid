@@ -44,7 +44,7 @@ test('oda: oluştur, küçük harfli kodla katıl, aynı ad önerisi, dolu/bulun
   assert.match(code, /^[A-HJ-NP-Z2-9]{5}$/);
   const r1 = await host.room((r) => r.code === code);
   assert.equal(r1.hostPid, host.hello.pid);
-  assert.deepEqual(r1.settings, { capacity: 3, mode: 'klasik', turnTime: 30, win: 'line3', style: 'turn', matchTime: 180, hints: true, reuse: false });
+  assert.deepEqual(r1.settings, { capacity: 3, mode: 'klasik', turnTime: 30, win: 'line3', style: 'turn', matchTime: 180, rounds: 1, hints: true, reuse: false });
 
   const p2 = await client();
   await assert.rejects(p2.req('room/join', { code: code.toLowerCase(), nick: 'EREN' }), (e) => {
@@ -111,7 +111,8 @@ test('maç: başladıktan sonra katılınamaz; sıra, doğru/yanlış cevap, pas
   const wrong = app.db.players.find((p) => !app.db.matches(p, row1) && !game.used.has(p.i));
   const w = await other.req('game/answer', { cell: 1, fid: wrong.i });
   assert.equal(w.correct, false);
-  assert.ok(w.reasons[0].endsWith('oynamadı') || w.reasons[0].endsWith('değil'));
+  // Gerekçe satır türüne göre değişir (kulüpte oynamadı / uyruklu değil / kupayı kazanmadı …)
+  assert.ok(w.reasons.length >= 1 && w.reasons[0].length > 3, w.reasons.join(' · '));
   await cur.req('game/pass');
   const log = await a.wait((m) => m.t === 'event' && m.kind === 'log' && m.entry.kind === 'pass');
   assert.equal(log.entry.pid, turnPid);
@@ -211,6 +212,22 @@ test('ayarlar: host lobide değiştirir; ipucu ve oyuncu kartı uçları', async
   const { card } = await a.req('player/card', { fid: 0 });
   assert.equal(card.id, 0);
   assert.ok(card.name && Array.isArray(card.clubs));
+});
+
+test('izleyici: dolu odayı izler, oynayamaz, çıkınca listeden düşer', async () => {
+  const a = await client();
+  const b = await client();
+  const { code } = await a.req('room/create', { nick: 'Sahip', capacity: 2 });
+  await b.req('room/join', { code, nick: 'Rakip' });
+  const c = await client();
+  await assert.rejects(c.req('room/join', { code, nick: 'Geciken' }), (e) => e.code === 'full');
+  await c.req('room/watch', { code });
+  const r = await c.room((x) => x.code === code);
+  assert.equal(r.watchers, 1, 'izleyici sayısı');
+  assert.equal(r.members.length, 2, 'izleyici oyuncu olmaz');
+  await assert.rejects(c.req('game/select', { cell: 0 }), (e) => e.code === 'no_room');
+  await c.req('room/unwatch');
+  assert.equal((await a.room((x) => x.watchers === 0)).watchers, 0);
 });
 
 test('takma ad kuralları sunucuda da uygulanır', async () => {

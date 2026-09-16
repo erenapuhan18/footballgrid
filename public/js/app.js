@@ -14,7 +14,7 @@ const MODE = {
   hizli: { name: 'Hızlı', desc: '3×3 ızgara, az hamle, çabuk biter' },
   uzman: { name: 'Uzman', desc: 'Bütün kulüpler, mevkiler, zor başlıklar · hücre çalma' },
 };
-const WIN = { line3: "3'leme", most: 'En çok hücre' };
+const WIN = { line3: "3'leme", most: 'En çok hücre', points: 'Nadirlik puanı' };
 
 const S = {
   pid: null,
@@ -48,7 +48,8 @@ const fine = () => matchMedia('(pointer: fine)').matches;
 /** Oda ayarlarının tek satırlık özeti. */
 function settingsText(s) {
   const parts = [MODE[s.mode]?.name, s.style === 'race' ? `Aynı anda · ${s.matchTime / 60} dk` : `Sırayla · ${s.turnTime} sn`];
-  if (s.capacity > 2) parts.push(WIN[s.win]);
+  if (s.capacity > 2 || s.win === 'points') parts.push(WIN[s.win]);
+  if (s.rounds > 1) parts.push(`${s.rounds} maçlık seri`);
   parts.push(s.hints ? 'İpucu açık' : 'İpucu kapalı');
   parts.push(s.reuse ? 'Aynı futbolcu tekrar olur' : 'Aynı futbolcu bir kez');
   return parts.join(' · ');
@@ -166,6 +167,7 @@ function setRoom(room) {
   }
   S.queue = null;
   S.routeCode = null;
+  S.watching = !room.members.some((m) => m.pid === S.pid); // üye değilsem izleyiciyim
   setPath('/oda/' + room.code);
   if (room.status === 'finished' && room.game?.result) recordResult(room);
   const gameView = room.game && (room.status === 'playing' || room.status === 'finished' || (room.status === 'countdown' && current === 'game'));
@@ -183,16 +185,30 @@ function recordResult(room) {
 
 async function leaveRoom({ forfeit = false } = {}) {
   const r = S.room;
-  if (forfeit && r?.game && !r.game.over && r.game.players.some((p) => p.pid === S.pid)) store.forfeit(`${r.code}:${r.round}`);
+  const watching = S.watching;
+  if (!watching && forfeit && r?.game && !r.game.over && r.game.players.some((p) => p.pid === S.pid)) store.forfeit(`${r.code}:${r.round}`);
   try {
-    await net.request('room/leave');
+    await net.request(watching ? 'room/unwatch' : 'room/leave');
   } catch {
     /* bağlantı yoksa sunucu zaten süre dolunca çıkarır */
   }
+  S.watching = false;
   S.room = null;
   removeCountdown();
   setPath('/');
   show('home');
+}
+
+/** İzleyici olarak odaya bak: oda dolu ya da maç başlamış olsa da ızgarayı canlı görürsün. */
+async function watchRoom(code, err) {
+  try {
+    await net.request('room/watch', { code });
+    S.watching = true;
+    toast('İzleyicisin: maçı görürsün, cevap veremezsin.', 'info', 3500);
+  } catch (e) {
+    if (err) err.textContent = e.message;
+    else toast(e.message, 'error');
+  }
 }
 
 async function joinQueue(size) {
@@ -282,16 +298,22 @@ async function checkNick(input, err) {
 
 /** Oda ayarları formu — oda kurarken ve lobide (host) aynı bileşen. */
 function SettingsForm(init = {}, { minCapacity = 2 } = {}) {
-  const st = { capacity: 2, mode: 'klasik', turnTime: 30, win: 'line3', style: 'turn', matchTime: 180, hints: true, reuse: false, ...init };
+  const st = { capacity: 2, mode: 'klasik', turnTime: 30, win: 'line3', style: 'turn', matchTime: 180, rounds: 1, hints: true, reuse: false, ...init };
   const uid = Math.random().toString(36).slice(2, 7); // aynı sayfada iki form olursa radio adları çakışmasın
   const note = h('p', { class: 'hint center' });
   const boxes = {};
   const update = () => {
     const size = st.mode === 'hizli' || st.capacity === 2 ? 3 : 4;
-    const line = st.capacity === 2 || st.win === 'line3';
+    const line = st.win === 'line3' || (st.capacity === 2 && st.win !== 'points');
     const tempo = st.style === 'race' ? `aynı anda, ${st.matchTime / 60} dk` : `sırayla, tur ${st.turnTime} sn`;
-    note.textContent = `${size}×${size} ızgara · ${line ? 'yan yana 3 hücre kapan kazanır' : 'en çok hücre kapan kazanır'} · ${tempo}`;
-    boxes.win.hidden = st.capacity === 2;
+    const rule = st.win === 'points'
+      ? 'en yüksek nadirlik puanı kazanır'
+      : line
+        ? 'yan yana 3 hücre kapan kazanır, üçleyen yoksa berabere'
+        : 'en çok hücre kapan kazanır';
+    note.textContent = `${size}×${size} ızgara · ${rule} · ${tempo}${st.rounds > 1 ? ` · ${st.rounds} maçlık seri` : ''}`;
+    // 2 kişide "en çok hücre" kapalı: ilk başlayan bir hücre fazla alır, bilgi eşitse otomatik kazanırdı
+    for (const i of boxes.win.querySelectorAll('input')) i.disabled = st.capacity === 2 && i.value === 'most';
     boxes.turnTime.hidden = st.style !== 'turn';
     boxes.matchTime.hidden = st.style !== 'race';
     for (const [key, box] of Object.entries(boxes)) for (const i of box.querySelectorAll('input')) i.checked = String(st[key]) === i.value;
@@ -302,7 +324,7 @@ function SettingsForm(init = {}, { minCapacity = 2 } = {}) {
         h('label', { class: 'chip' },
           h('input', {
             type: 'radio', name: `${key}-${uid}`, value: String(v), disabled: !!disabled,
-            on: { change: () => { st[key] = v; if (key === 'capacity') st.win = v === 4 ? 'most' : 'line3'; update(); } },
+            on: { change: () => { st[key] = v; if (key === 'capacity' && st.win !== 'points') st.win = v === 4 ? 'most' : 'line3'; update(); } },
           }),
           h('span', { class: 'chip-body' }, h('b', {}, label), desc ? h('small', {}, desc) : null))))));
   const el = h('div', { class: 'settings-form' },
@@ -315,8 +337,14 @@ function SettingsForm(init = {}, { minCapacity = 2 } = {}) {
     group('Tur süresi', 'turnTime', [[15, '15 sn'], [30, '30 sn'], [45, '45 sn'], [60, '60 sn']]),
     group('Maç süresi', 'matchTime', [[60, '1 dk'], [120, '2 dk'], [180, '3 dk'], [300, '5 dk']]),
     group('Kazanma şekli', 'win', [
-      ['line3', "3'leme", 'Yan yana 3 hücre (yatay, dikey ya da çapraz) kapan kazanır'],
+      ['line3', "3'leme", 'Yan yana 3 hücre (yatay, dikey ya da çapraz) kapan kazanır; kimse üçleyemezse berabere'],
       ['most', 'En çok hücre', 'Izgara dolunca ya da süre bitince en çok hücresi olan kazanır'],
+      ['points', 'Nadirlik puanı', 'Az bilinen doğru cevap daha çok puan getirir; en yüksek puan kazanır'],
+    ]),
+    group('Maç sayısı', 'rounds', [
+      [1, 'Tek maç'],
+      [3, '3 maçlık seri', 'Turnuva: en çok maçı kazanan şampiyon'],
+      [5, '5 maçlık seri', 'Turnuva: en çok maçı kazanan şampiyon'],
     ]),
     group('İpucu', 'hints', [[true, 'Açık', 'Maç başına 1 ipucu'], [false, 'Kapalı', 'İpucu yok']]),
     group('Aynı futbolcu', 'reuse', [[false, 'Bir kez', 'Her futbolcu maçta bir kez'], [true, 'Tekrar olur', 'Birden çok hücrede kullanılabilir']]),
@@ -592,6 +620,7 @@ function InviteScreen({ code }) {
     .then((p) => {
       info.textContent = `${p.host ? `Host: ${p.host} · ` : ''}${p.count}/${p.capacity} oyuncu · ${MODE[p.mode]?.name || p.mode} · ${p.turnTime} sn`;
       if (p.error) err.textContent = p.error.message;
+      watchBtn.hidden = !(p.error && (p.error.code === 'full' || p.error.code === 'started'));
     })
     .catch((e) => {
       info.textContent = '';
@@ -602,6 +631,8 @@ function InviteScreen({ code }) {
     const n = await checkNick(input, err);
     if (n) await attemptJoin(code, n, err, btn);
   }
+  // Oda dolu ya da maç başlamışsa katılamazsın; izleyici olarak girebilirsin (oda bilgisi gelince görünür)
+  const watchBtn = h('button', { class: 'btn', hidden: true, on: { click: () => watchRoom(code, err) } }, 'İZLEYİCİ OLARAK GİR');
   const el = h('section', { class: 'screen' },
     Logo('small'),
     h('h2', { class: 'title' }, 'ODAYA DAVET'),
@@ -609,6 +640,7 @@ function InviteScreen({ code }) {
     info,
     h('div', { class: 'card field' }, h('label', { class: 'label', for: 'nick-inv' }, 'Takma adını gir'), input, err),
     btn,
+    watchBtn,
     h('button', { class: 'link center', on: { click: () => { S.routeCode = null; setPath('/'); show('home'); } } }, 'Ana sayfaya dön'));
   return { el, focus: () => fine() && input.focus() };
 }
