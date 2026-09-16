@@ -151,7 +151,7 @@ export function parseInfobox(wt) {
     const l = firstLink(clean(params['nationalteam' + n]));
     if (!l) continue;
     const [a, b] = parseYears(params['nationalyears' + n]);
-    nt.push([l.t, a, b]);
+    nt.push([l.t, a, b, num(params['nationalcaps' + n]), num(params['nationalgoals' + n])]);
   }
   return {
     c, y, n: nt,
@@ -186,7 +186,7 @@ export async function infoboxes(titles, { log } = {}) {
   const batches = chunk([...new Set(titles)].sort(), 50);
   let done = 0;
   await pool(batches, 2, async (b) => {
-    const res = await cached('wp-ib3:' + b.join('|'), async () => {
+    const res = await cached('wp-ib4:' + b.join('|'), async () => {
       const j = await wp({ action: 'query', prop: 'revisions', rvprop: 'content', rvslots: 'main', rvsection: '0', redirects: '1', titles: b.join('|') });
       if (!j?.query) return null;
       const r = resolver(j.query);

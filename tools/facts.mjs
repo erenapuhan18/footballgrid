@@ -52,6 +52,13 @@ const FACTS = [
   ['Romelu Lukaku', 1993, { clubs: ['rsca', 'che', 'eve', 'mun', 'int', 'rom', 'nap', 'fb'], lg: ['eng', 'ita', 'tr1'], nats: ['Belçika'] }],
   ['Arda Güler', 2005, { clubs: ['fb', 'rma'], noClubs: ['gs', 'bjk'], nats: ['Türkiye'] }],
   ['Victor Osimhen', 1998, { clubs: ['wob', 'losc', 'nap', 'gs'], lg: ['ger', 'fra', 'ita', 'tr1'] }],
+  // jokerler
+  ['Clarence Seedorf', 1976, { clubs: ['aja', 'rma', 'mil', 'int'], wild: ['ucl2', 'ucl3', 'ucl2clubs', 'uclfinal'] }],
+  ['Paolo Maldini', 1968, { clubs: ['mil'], wild: ['oneclub', 'apps300', 'apps500', 'ucl2', 'uclfinal', 'nt100'] }],
+  ['Francesco Totti', 1976, { clubs: ['rom'], wild: ['oneclub', 'apps300', 'apps500', 'goals100'] }],
+  ['Iker Casillas', 1981, { clubs: ['rma', 'fcp'], wild: ['ucl2', 'ucl3', 'uclfinal', 'nt100'] }],
+  ['Rüştü Reçber', 1973, { clubs: ['fb', 'bar', 'bjk'], wild: ['nt100'] }],
+  ['Andrés Iniesta', 1984, { clubs: ['bar'], wild: ['treble', 'ucl2', 'uclfinal', 'nt100'] }],
 ];
 
 let fail = 0;
@@ -64,6 +71,9 @@ for (const [name, by, f] of FACTS) {
     continue;
   }
   const errs = [];
+  const wk = (k) => (db.wilds || []).findIndex((w) => w.key === k);
+  for (const k of f.wild || []) if (wk(k) >= 0 && !(p[11] || []).includes(wk(k))) errs.push(`joker yok: ${k}`);
+  for (const k of f.noWild || []) if (wk(k) >= 0 && (p[11] || []).includes(wk(k))) errs.push(`fazla joker: ${k}`);
   for (const k of f.clubs || []) if (ck(k) >= 0 && !p[3].includes(ck(k))) errs.push(`kulüp yok: ${k}`);
   for (const k of f.noClubs || []) if (ck(k) >= 0 && p[3].includes(ck(k))) errs.push(`fazla kulüp: ${k}`);
   for (const k of f.lg || []) if (!p[5].includes(lk(k))) errs.push(`lig yok: ${k}`);

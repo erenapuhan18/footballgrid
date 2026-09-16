@@ -56,6 +56,16 @@ const WILD_HEAD = {
   treble: ['Treble', 'kazandı'],
   apps300: ['Tek kulüpte 300+', 'lig maçı oynadı'],
   goals100: ['100+ lig golü', 'attı'],
+  ucl3: ['3+ Şampiyonlar Ligi', 'kazandı'],
+  uclfinal: ['Şampiyonlar Ligi finali', 'oynadı'],
+  ucl2clubs: ['2 farklı takımla', 'ŞL kazandı'],
+  nt100: ['Milli takımda 100+', 'maç oynadı'],
+  nt30g: ['Milli takımda 30+', 'gol attı'],
+  apps500: ['Tek kulüpte 500+', 'lig maçı oynadı'],
+  oneclub: ['Kariyeri tek kulüpte', 'geçti'],
+  age35: ['35 yaşından sonra', 'oynadı'],
+  active: ['Hâlâ', 'oynuyor'],
+  topscorer: ['Bir ligde', 'gol kralı oldu'],
 };
 
 // Klasik modda da görünen büyük ligler (diğerleri yalnızca Uzman)

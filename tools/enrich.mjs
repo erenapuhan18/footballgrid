@@ -443,6 +443,20 @@ async function wikiWinner(label, kind) {
   return matchTeam(links[0] || m[1], kind);
 }
 
+/** Sezon maddesinin bilgi kutusundan ikinci (finalde kaybeden) takım — "final oynamış" jokeri için. */
+async function wikiRunnerUp(label, kind) {
+  const title = label.replace(/(\d{4})-(\d{2})\b/, '$1–$2');
+  const j = await cached('wp:' + title, async () => {
+    await sleep(300);
+    return getJSON('https://en.wikipedia.org/w/api.php?action=parse&format=json&prop=wikitext&section=0&redirects=1&page=' + encodeURIComponent(title), {}, 3).catch(() => null);
+  });
+  const wt = j?.parse?.wikitext?.['*'] || '';
+  const m = /\|\s*(?:runners-?up|second)\s*=\s*([^\n]*)/i.exec(wt);
+  if (!m) return null;
+  const links = [...m[1].matchAll(/\[\[([^\]|]+)/g)].map((x) => x[1]).filter((x) => !/^(file|image):/i.test(x));
+  return matchTeam(links[0] || m[1], kind);
+}
+
 console.log('» kupalar');
 const edParticipants = new Map(); // turnuva QID → [futbolcu]
 for (const [q, list] of extras) for (const x of list) if (x.k === 'e' && byQid.get(q)) push(edParticipants, x.v, byQid.get(q));
@@ -479,10 +493,18 @@ for (const [ci, comp] of COMPETITIONS.entries()) {
     }
     if (!winKeys.length) continue;
     seasonsUsed++;
+    // Finalde kadroda olmak: kazanan + Wikipedia kutusundaki ikinci takım ("ŞL finali oynamış" jokeri)
+    if (key === 'ucl') {
+      const second = s.lbl ? await wikiRunnerUp(s.lbl, kind) : null;
+      for (const fk of [...winKeys, second].filter(Boolean)) {
+        for (const { p, st } of byTeam.get(fk) || []) if (st.ps <= D && D <= st.pe && !awayOnLoan(p, st, D)) p.uclFinal = true;
+      }
+    }
     for (const wk of winKeys) {
       let winners = [];
       if (kind === 'club') {
         winners = (byTeam.get(wk) || []).filter(({ p, st }) => st.ps <= D && D <= st.pe && !awayOnLoan(p, st, D)).map(({ p }) => p);
+        if (key === 'ucl') for (const p of winners) (p.uclClubs ||= new Set()).add(wk);
       } else {
         const ni = Number(wk.slice(1));
         // Önce oyuncunun oynadığı milli takım; uyruk yalnızca milli takım bilgisi hiç yoksa
@@ -506,6 +528,17 @@ for (const [ci, comp] of COMPETITIONS.entries()) {
   cupReport.push(`${key}:${seasonsUsed} sezon/${won}`);
 }
 console.log('  ' + cupReport.join(' · ') + ` · Wikipedia'dan tamamlanan kazanan: ${wikiFilled}`);
+
+/* ───────── 4b) gol kralı ödülleri: oyuncularda duran P166 ödüllerinin adlarını çöz, desene uyanları işaretle */
+
+const awardIds = [...new Set([...extras.values()].flat().filter((x) => x.k === 'a').map((x) => x.v))];
+const scorerAwards = new Set();
+for (const c of chunk(awardIds, 400)) {
+  for (const r of await sparql(`SELECT ?a ?l WHERE { VALUES ?a { ${values(c)} } ?a rdfs:label ?l . FILTER(LANG(?l) = "en") }`)) {
+    if (/top scorer|topscorer|golden boot|golden shoe|pichichi|capocannoniere|torjägerkanone|gol kral/i.test(r.l)) scorerAwards.add(Q(r.a));
+  }
+}
+console.log(`  gol kralı ödülü: ${scorerAwards.size} farklı ödül · ${awardIds.length} ödül tarandı`);
 
 /* ───────── 5) jokerler */
 
@@ -541,18 +574,40 @@ for (const p of P) {
     return p.stints.some((st) => st.key === key && st.ps !== null && st.ps <= D && D <= st.pe && !awayOnLoan(p, st, D));
   });
   if (treble) p.wild.add(W.treble);
-  // Bilgi kutusundaki lig maçı / golü: tek kulüpte 300+ maç, kariyerde 100+ gol
+  if (won('ucl') >= 3) p.wild.add(W.ucl3);
+  if (p.uclFinal) p.wild.add(W.uclfinal);
+  if (p.uclClubs?.size >= 2) p.wild.add(W.ucl2clubs);
+  if (ex.some((x) => x.k === 'a' && scorerAwards.has(x.v))) p.wild.add(W.topscorer);
+  const clubSt = p.stints.filter((st) => !st.key.startsWith('n') && st.pe !== null);
+  if (clubSt.some((st) => st.pe >= NOW - 0.01)) p.wild.add(W.active);
+  if (p.by && clubSt.length && Math.max(...clubSt.map((st) => st.pe)) - p.by >= 35) p.wild.add(W.age35);
+
+  // Bilgi kutusundaki lig maçı / golü: tek kulüpte 300+/500+ maç, tek kulüp kariyeri, 100+ gol, milli takım
   const ib = ibOf(p);
   if (ib) {
-    const per = new Map();
-    for (const [t, label, , , , caps] of ib.c) {
-      if (!caps) continue;
+    const per = new Map(); // kiralıklar dahil, kulüp başına lig maçı
+    const perm = new Map(); // yalnız asıl dönemler — "tek kulüp adamı" için
+    for (const [t, label, , , loan, caps] of ib.c) {
       const k = (t && QOF.get(t)) || fold(label);
-      per.set(k, (per.get(k) || 0) + caps);
+      if (caps) per.set(k, (per.get(k) || 0) + caps);
+      if (!loan) perm.set(k, (perm.get(k) || 0) + (caps || 0));
     }
-    if (per.size && Math.max(...per.values()) >= 300) p.wild.add(W.apps300);
+    const most = per.size ? Math.max(...per.values()) : 0;
+    if (most >= 300) p.wild.add(W.apps300);
+    if (most >= 500) p.wild.add(W.apps500);
+    if (perm.size === 1 && [...perm.values()][0] >= 150) p.wild.add(W.oneclub);
     const goals = ib.tg ?? ib.c.reduce((s, r) => s + (r[6] || 0), 0);
     if (goals >= 100) p.wild.add(W.goals100);
+    let ntCaps = 0;
+    let ntGoals = 0;
+    for (const [t, , , caps, goals2] of ib.n) {
+      const q = QOF.get(t);
+      if (!((q && natOfNt.has(q)) || (SENIOR_NT.test(t) && !NOT_SENIOR.test(t)))) continue;
+      ntCaps = Math.max(ntCaps, caps || 0);
+      ntGoals = Math.max(ntGoals, goals2 || 0);
+    }
+    if (ntCaps >= 100) p.wild.add(W.nt100);
+    if (ntGoals >= 30) p.wild.add(W.nt30g);
   }
 }
 

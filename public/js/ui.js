@@ -294,13 +294,29 @@ function tactics(px) {
   );
 }
 
-/** Joker (wildcard): kırmızı zeminde yıldız. */
-function joker(px) {
+// Her jokerin kendi kısa işareti — hepsi aynı yıldız olmasın
+const WILD_GLYPH = {
+  ballon: 'BO', wcplay: 'DK', y2000: '00', pre1980: '<80', clubs8: '8', coach: 'TD',
+  ucl2: '2×', ucl3: '3×', uclfinal: 'F', ucl2clubs: '2K', lt2big: '2L', big3: '3L', big4: '4L',
+  lt3tr1: 'SL', lt3eng: 'PL', lt3esp: 'LL', lt3ita: 'SA', lt3ger: 'BL',
+  d70: '70', d80: '80', d90: '90', treble: '3', apps300: '300', apps500: '500', goals100: '100',
+  nt100: '100', nt30g: '30', oneclub: '1K', age35: '35', active: 'ŞİM', topscorer: 'GOL',
+  derby: '3B', trforeign: 'YAB', trabroad: 'TR',
+};
+
+/** Joker (wildcard): kırmızı zeminde yıldız ya da jokerin kısa işareti. */
+function joker(px, glyph) {
   return s(
     'svg',
     { viewBox: '0 0 40 40', width: px, height: px, class: 'joker', 'aria-hidden': 'true' },
     s('rect', { x: 5, y: 5, width: 30, height: 30, rx: 7, fill: '#e0362c', stroke: '#14203a', 'stroke-width': 2.2 }),
-    s('path', { d: starPath(20, 20.6, 10.5), fill: '#ffffff', stroke: '#14203a', 'stroke-width': 1.4, 'stroke-linejoin': 'round' }),
+    glyph
+      ? s('text', {
+          x: 20, y: 20.5, 'text-anchor': 'middle', 'dominant-baseline': 'central', fill: '#ffffff',
+          'font-size': glyph.length > 2 ? 10.5 : glyph.length > 1 ? 13.5 : 18,
+          'font-weight': 900, 'font-family': 'Archivo, system-ui, sans-serif',
+        }, glyph)
+      : s('path', { d: starPath(20, 20.6, 10.5), fill: '#ffffff', stroke: '#14203a', 'stroke-width': 1.4, 'stroke-linejoin': 'round' }),
   );
 }
 
@@ -309,8 +325,8 @@ export function catIcon(cat, px = 30) {
   if (cat.type === 'nat') return flag(cat.flag, px + 4);
   if (cat.type === 'lg') return h('span', { class: 'lg-badge' }, cat.short || cat.name);
   if (cat.type === 'cup') return trophy(cat.short, px);
-  if (cat.type === 'mgr') return tactics(px);
-  if (cat.type === 'wild') return joker(px);
+  if (cat.type === 'mgr' || cat.type === 'mate') return tactics(px);
+  if (cat.type === 'wild') return joker(px, WILD_GLYPH[String(cat.key || '').split(':')[1]]);
   return jersey(cat.key, px);
 }
 

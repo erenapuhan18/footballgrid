@@ -256,6 +256,16 @@ export const WILDCARDS = [
   ['treble', 'Treble kazandı', 'Aynı sezon lig, kupa ve Şampiyonlar Ligi kazanan takımda oynamış', 'treble kazanmadı', 'k'],
   ['apps300', 'Tek kulüpte 300+ lig maçı', 'Bir kulüpte en az 300 lig maçına çıkmış', 'tek kulüpte 300 lig maçına çıkmadı', 'u'],
   ['goals100', '100+ lig golü', 'Kariyerinde en az 100 lig golü atmış', '100 lig golüne ulaşmadı', 'k'],
+  ['ucl3', '3+ Şampiyonlar Ligi', 'En az 3 kez Şampiyonlar Ligi kazanmış', '3 kez Şampiyonlar Ligi kazanmadı', 'k'],
+  ['uclfinal', 'ŞL finali oynamış', 'Şampiyonlar Ligi (Avrupa Kupası) finalinde kadroda olmuş', 'Şampiyonlar Ligi finali oynamadı', 'k'],
+  ['ucl2clubs', '2 farklı takımla ŞL', 'İki ayrı kulüple Şampiyonlar Ligi kazanmış', 'iki ayrı kulüple Şampiyonlar Ligi kazanmadı', 'u'],
+  ['nt100', 'Milli takımda 100+ maç', 'A milli takımında en az 100 maç oynamış', 'milli takımda 100 maça ulaşmadı', 'k'],
+  ['nt30g', 'Milli takımda 30+ gol', 'A milli takımında en az 30 gol atmış', 'milli takımda 30 gole ulaşmadı', 'k'],
+  ['apps500', 'Tek kulüpte 500+ lig maçı', 'Bir kulüpte en az 500 lig maçına çıkmış', 'tek kulüpte 500 lig maçına çıkmadı', 'u'],
+  ['oneclub', 'Tek kulüp adamı', 'A takım kariyerini tek kulüpte geçirmiş (150+ lig maçı)', 'kariyerini tek kulüpte geçirmedi', 'k'],
+  ['age35', '35 yaşından sonra oynadı', '35 yaşından sonra da oynamış', '35 yaşından sonra oynamadı', 'k'],
+  ['active', 'Hâlâ oynuyor', '2026-27 sezonunda bir kulüpte', 'artık oynamıyor', 'k'],
+  ['topscorer', 'Lig gol kralı', 'Bir ligde gol kralı olmuş', 'lig gol kralı olmadı', 'u'],
 ];
 
 /* Treble: aynı sezon lig + kupa + Avrupa Kupası/Şampiyonlar Ligi. [kulüp, sezonun bittiği yıl] */

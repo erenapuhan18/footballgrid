@@ -43,11 +43,13 @@ Dünya Kupası, EURO, Süper Lig / Premier Lig / La Liga / Serie A / Bundesliga 
 Başlıklar dengeli dağılır: bir ızgaranın 2×3 (ya da 2×4) başlığının yarısından azı kulüptür, geri kalanı
 farklı türlerden birer tane — ızgara "full takım" olmaz.
 
-**Jokerler:** Ballon d'Or · Dünya Kupası'nda oynamış · 2+ Şampiyonlar Ligi · 3+ kez Süper Lig / Premier Lig /
-La Liga / Serie A / Bundesliga şampiyonu · 5 büyük ligin 2+'sinde şampiyon · 5 büyük ligin 3+'ünde ve 4+'ünde
-oynamış · treble kazanmış · tek kulüpte 300+ lig maçı · 100+ lig golü · 1970'lerde / 80'lerde / 90'larda /
+**Jokerler:** Ballon d'Or · Dünya Kupası'nda oynamış · 2+ ve 3+ Şampiyonlar Ligi · ŞL finali oynamış ·
+2 farklı takımla ŞL kazanmış · 3+ kez Süper Lig / Premier Lig / La Liga / Serie A / Bundesliga şampiyonu ·
+5 büyük ligin 2+'sinde şampiyon · 5 büyük ligin 3+'ünde ve 4+'ünde oynamış · treble kazanmış ·
+tek kulüpte 300+ ve 500+ lig maçı · kariyeri tek kulüpte geçmiş · 100+ lig golü · milli takımda 100+ maç ve
+30+ gol · lig gol kralı olmuş · 35 yaşından sonra oynamış · hâlâ oynuyor · 1970'lerde / 80'lerde / 90'larda /
 2000 sonrası doğumlu · 8+ takım · sonradan teknik direktör · GS-FB-BJK'den en az ikisi · Süper Lig'de oynamış
-yabancı · yurt dışında oynamış Türk.
+yabancı · yurt dışında oynamış Türk. Her jokerin ızgarada kendi kısa işareti var (2×, PL, 500, 35 …).
 
 - **Klasik:** herkesin bildiği kulüpler + ülke, lig, kupa, menajer ve joker karışımı. Her ızgarada en az
   bir Türk büyüğü bulunur; Fenerbahçe ve Beşiktaş öne çıkar.
@@ -104,9 +106,9 @@ katılma/sorgulama (kod tahminine karşı) · IP başına 40 bağlantı · kulla
 
 ## Veri
 
-Şu anki derleme (2026-09-16): **50.140 futbolcu** (12.439'u tanınmış, en az 15 Wikipedia maddesi),
-104 kulüp, 69 milli takım, 10 lig, 133 menajer, 59 takım arkadaşı başlığı, 21 joker.
-Her modda 150 denemede 150 ızgara üretiliyor (~2 ms).
+Şu anki derleme (2026-09-16): **50.141 futbolcu** (12.439'u tanınmış, en az 15 Wikipedia maddesi),
+104 kulüp, 69 milli takım, 10 lig, 133 menajer, 59 takım arkadaşı başlığı, 31 joker (+3 Türkiye jokeri).
+Her modda 150 denemede 150 ızgara üretiliyor (~1,5 ms).
 
 Futbolcu veritabanı **Wikidata**'dan (CC0) derlenir, **İngilizce Wikipedia** bilgi kutularıyla (CC BY-SA) düzeltilir:
 kulüp kariyeri, uyruk (temsil ettiği milli takım), mevki (P413), doğum yılı, lig (sezon sezon).
