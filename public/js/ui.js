@@ -1,7 +1,8 @@
 /* DOM yardımcıları ve çizimler: arma, bayrak, forma, QR, bildirim, pencere.
    Kullanıcıdan gelen her metin textContent ile basılır — innerHTML yok. */
 
-export const COLOR_HEX = { blue: '#2563eb', red: '#e0362c', green: '#15964f', yellow: '#f2b705' };
+// Oyuncu renkleri (koyu zeminde okunaklı olacak şekilde): CSS'teki --blue/--red/--green/--yellow ile aynı
+export const COLOR_HEX = { blue: '#4f8dff', red: '#ff4d5f', green: '#2bd07a', yellow: '#ffc93c' };
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 
@@ -393,7 +394,7 @@ export function playerCard(card) {
 
 /** Logodaki 3×3 ızgara işareti. */
 export function gridGlyph(px = 40, variant = '') {
-  const fill = { 0: COLOR_HEX.blue, 4: COLOR_HEX.red, 8: COLOR_HEX.blue, 5: COLOR_HEX.yellow };
+  const fill = { 0: '#21e07c', 4: '#ffffff', 8: '#21e07c', 5: 'rgba(255,255,255,.28)' };
   const cells = [];
   for (let i = 0; i < 9; i++) {
     const x = (i % 3) * 13 + 1.5;

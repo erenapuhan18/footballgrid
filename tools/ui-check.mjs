@@ -284,7 +284,8 @@ try {
   const wrong = app.db.players.find((p) => !app.db.matches(p, r2) && p.sl > 20 && !room.game.used.has(p.i));
   await pick(P2, cell2, wrong);
   const feed = await A.ev(`await wait(() => $('.feed li')?.textContent.includes('❌')); return $('.feed li').textContent;`);
-  check(/oynamadı|değil/.test(feed), 'yanlış cevap: akışta sebep', feed);
+  // sebep, tutmayan şartın türüne göre değişir: "oynamadı", "şampiyonu olmadı", "kazanmadı", "… değil"
+  check(/oynamadı|değil|olmadı|kazanmadı|çalışmadı|tutmuyor|yok/.test(feed), 'yanlış cevap: akışta sebep', feed);
   await A.shot('10-game.png');
   await (await whose())[1].shot('11-game-turn.png');
 
