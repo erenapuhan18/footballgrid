@@ -44,7 +44,11 @@ test('oda: oluştur, küçük harfli kodla katıl, aynı ad önerisi, dolu/bulun
   assert.match(code, /^[A-HJ-NP-Z2-9]{5}$/);
   const r1 = await host.room((r) => r.code === code);
   assert.equal(r1.hostPid, host.hello.pid);
-  assert.deepEqual(r1.settings, { capacity: 3, mode: 'klasik', turnTime: 30, win: 'line3', style: 'turn', matchTime: 180, rounds: 1, hints: true, reuse: false });
+  assert.deepEqual(r1.settings, {
+    capacity: 3, mode: 'klasik', turnTime: 30, win: 'line3', style: 'turn', matchTime: 180, rounds: 1, hints: true, reuse: false,
+    cats: ['nat', 'lg', 'cup', 'mgr', 'mate', 'wild', 'ht', 'pos'],
+    off: [],
+  });
 
   const p2 = await client();
   await assert.rejects(p2.req('room/join', { code: code.toLowerCase(), nick: 'EREN' }), (e) => {
@@ -204,6 +208,9 @@ test('ayarlar: host lobide değiştirir; ipucu ve oyuncu kartı uçları', async
   const cur = playing.game.turn.pid === a.hello.pid ? a : b;
   const hint = await cur.req('game/hint', { cell: 0 });
   assert.ok(Array.isArray(hint.hint.nats) && Array.isArray(hint.hint.pos));
+  // ipucunda adın ve soyadın baş harfi olur, harf sayısı olmaz
+  assert.match(hint.hint.initials, /^[^\s.]\.( [^\s.]\.)?$/, 'baş harf biçimi: ' + hint.hint.initials);
+  assert.ok(!JSON.stringify(hint.hint).includes('harf'));
   // /i bayrağı Türkçe İ'yi i ile eşlemez → düz metin
   await assert.rejects(cur.req('game/hint', { cell: 1 }), (e) => e.message.includes('hakkını'));
 
@@ -212,6 +219,50 @@ test('ayarlar: host lobide değiştirir; ipucu ve oyuncu kartı uçları', async
   const { card } = await a.req('player/card', { fid: 0 });
   assert.equal(card.id, 0);
   assert.ok(card.name && Array.isArray(card.clubs));
+});
+
+test('kriterler: host kapattığı başlık türleri ızgaraya girmez', async () => {
+  const a = await client();
+  const b = await client();
+  const { code } = await a.req('room/create', { nick: 'Kriter', capacity: 2, cats: ['nat'] });
+  let r = await a.room((x) => x.code === code);
+  assert.deepEqual(r.settings.cats, ['nat'], 'ayar kaydedildi');
+  await b.req('room/join', { code, nick: 'Rakip' });
+  await a.req('room/start');
+  let playing = await a.room((x) => x.status === 'playing', 6000);
+  const types = [...playing.game.rows, ...playing.game.cols].map((c) => c.type);
+  assert.ok(types.every((t) => t === 'club' || t === 'nat'), 'ızgarada kapalı tür: ' + types.join(','));
+
+  app.rooms.rooms.get(code).game.end('turns');
+  await a.room((x) => x.status === 'finished');
+  await a.req('room/settings', { settings: { cats: [] } });
+  r = await b.room((x) => x.settings.cats.length === 0);
+  await a.req('room/start');
+  playing = await a.room((x) => x.status === 'playing' && x.round === 2, 6000);
+  const bare = [...playing.game.rows, ...playing.game.cols].map((c) => c.type);
+  assert.ok(bare.every((t) => t === 'club'), 'hepsi kapalıyken kulüp dışı başlık: ' + bare.join(','));
+});
+
+test('kriterler: tek tek kapatılan başlık ızgaraya girmez', async () => {
+  const a = await client();
+  const b = await client();
+  const { cats } = await a.req('cats/list');
+  assert.ok(cats.club?.length > 4 && cats.nat?.length > 1, 'kriter listesi geldi');
+  assert.ok(cats.club.every((x) => x.k.startsWith('club:') && x.n && typeof x.c === 'number'));
+  // en kalabalık iki kulüp ve bir ülke kapalı olsun
+  const off = [cats.club[0].k, cats.club[1].k, cats.nat[0].k, 'bilinmeyen:anahtar'];
+  const { code } = await a.req('room/create', { nick: 'Ayıklayıcı', capacity: 2, off });
+  const r = await a.room((x) => x.code === code);
+  assert.deepEqual(r.settings.off, off.slice(0, 3).sort(), 'bilinmeyen anahtar atıldı, kalanı kaydedildi');
+  await b.req('room/join', { code, nick: 'Rakip' });
+  for (let round = 0; round < 3; round++) {
+    await a.req('room/start');
+    const playing = await a.room((x) => x.status === 'playing' && x.round === round + 1, 6000);
+    const keys = [...playing.game.rows, ...playing.game.cols].map((c) => c.key);
+    for (const k of off.slice(0, 3)) assert.ok(!keys.includes(k), `kapalı başlık ızgarada: ${k}`);
+    app.rooms.rooms.get(code).game.end('turns');
+    await a.room((x) => x.status === 'finished');
+  }
 });
 
 test('izleyici: dolu odayı izler, oynayamaz, çıkınca listeden düşer', async () => {

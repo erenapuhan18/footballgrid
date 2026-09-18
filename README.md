@@ -35,26 +35,66 @@ Bir futbolcu bir maçta yalnızca bir kez kullanılır. Yanlış cevapta hangi �
 "Yan yana" yatay, dikey ve iki çapraz yönü kapsar; 4×4'te 24 farklı üçlü vardır. Kazanma şekli oda
 kurulurken seçilir; hızlı maçta 3 kişilik 3'leme, 4 kişilik en çok hücre oynanır.
 
-**Başlık türleri:** kulüp · ülke (uyruk) · lig · **kupa** (Şampiyonlar Ligi, Avrupa Ligi/UEFA Kupası,
-Dünya Kupası, EURO, Süper Lig / Premier Lig / La Liga / Serie A / Bundesliga / Ligue 1 şampiyonluğu) ·
-**menajer** ("Mourinho ile çalışmış": kulüpte ya da milli takımda aynı dönemde) · **takım arkadaşı**
-("Hagi ile oynadı": aynı kulüpte, aynı dönemde) · **joker** · mevki (Uzman).
+**Başlık türleri:** kulüp · ülke (uyruk) · lig · **kupa** · **teknik direktör** ("Mourinho ile çalışmış":
+kulüpte ya da milli takımda aynı dönemde) · **takım arkadaşı** ("Hagi ile oynadı": aynı kulüpte **ya da
+A milli takımında**, aynı dönemde) · **özel şart** · **boy** · mevki (Uzman).
+
+**Kulüp başlıkları (53):** tanınmış (sl≥15) cevabı **206'dan az** olan kulüp başlık olmaz; ayrıca eşiğin
+üstünde olsa da elle çıkarılanlar var (West Ham, Flamengo, Sampdoria, Espanyol, Torino, Valencia, Palmeiras,
+São Paulo, Corinthians, Leeds, Udinese, Parma, Stuttgart, Boca, Deportivo, Hamburg, Saint-Étienne, Nice,
+Bordeaux, Kızılyıldız, Werder, Southampton). Süper Lig'in dördü (GS, FB, BJK, Trabzonspor) eşikten muaf.
+Kural `server/db.js` → `CLUB_MIN` / `CLUB_DROP` / `CLUB_KEEP`. **Kulüp verisi silinmez:** 104 kulübün hepsi
+oyuncu kartındaki kariyerde görünür, yalnız ızgara başlığı ve kriter listesinden düşer.
+
+**Kupalar (12, elle seçilmiş liste — `tools/catalog.mjs` → `COMPETITIONS`):** Ballon d'Or · Şampiyonlar Ligi ·
+Avrupa Ligi / UEFA Kupası · Konferans Ligi · Bundesliga · Serie A · La Liga · Premier Lig · Süper Lig
+şampiyonluğu · Copa América · EURO · Dünya Kupası. Ballon d'Or oyuncunun kendi ödülü (P166), kalanlar
+"final tarihinde kadroda olmak" kuralıyla.
+
+**Teknik direktörler (13, elle seçilmiş — `MANAGERS`):** Guardiola · Mourinho · Ancelotti · Ferguson ·
+Wenger · Fatih Terim · Van Gaal · Benítez · Klopp · Mancini · Conte · Unai Emery · Brendan Rodgers.
+Her biri 172-402 tanınmış futbolcuyla çalışmış (kulüp/milli takım döneminde en az ~2 ay çakışma).
+Dönemler iki kaynaktan: kulüplerin P286'sı **ve** hocanın kendi bilgi kutusu — Wikidata'da Benítez'in
+Liverpool'u, Terim'in milli takım dönemleri hiç yok.
+
+**Boy başlıkları:** 1,90 m ve üstü · 1,85 m ve üstü · 1,75 m ve altı · 1,70 m ve altı (Uzman'da ayrıca
+1,95 m ve üstü, 1,65 m ve altı). Izgarada ölçü şeridi simgesiyle görünür ("175 ▼"), oyuncu kartında boy yazar.
+Bir ızgarada en fazla bir boy başlığı olur, eşikler üst üste binebilir.
 
 Başlıklar dengeli dağılır: bir ızgaranın 2×3 (ya da 2×4) başlığının yarısından azı kulüptür, geri kalanı
 farklı türlerden birer tane — ızgara "full takım" olmaz.
 
-**Jokerler:** Ballon d'Or · Dünya Kupası'nda oynamış · 2+ ve 3+ Şampiyonlar Ligi · ŞL finali oynamış ·
-2 farklı takımla ŞL kazanmış · 3+ kez Süper Lig / Premier Lig / La Liga / Serie A / Bundesliga şampiyonu ·
-5 büyük ligin 2+'sinde şampiyon · 5 büyük ligin 3+'ünde ve 4+'ünde oynamış · treble kazanmış ·
-tek kulüpte 300+ ve 500+ lig maçı · kariyeri tek kulüpte geçmiş · 100+ lig golü · milli takımda 100+ maç ve
-30+ gol · lig gol kralı olmuş · 35 yaşından sonra oynamış · hâlâ oynuyor · 1970'lerde / 80'lerde / 90'larda /
-2000 sonrası doğumlu · 8+ takım · sonradan teknik direktör · GS-FB-BJK'den en az ikisi · Süper Lig'de oynamış
-yabancı · yurt dışında oynamış Türk. Her jokerin ızgarada kendi kısa işareti var (2×, PL, 500, 35 …).
+**Kriter seçimi:** oda kurarken (ve lobide host) "Izgara kriterleri" bölümünde her tür için bir satır var:
+soldaki kutu türü tamamen açıp kapatır, sağdaki **SEÇ** o türün içine girer ve **başlıkları tek tek**
+kapatmaya yarar (hangi hoca, hangi kupa, hangi kulüp…). Listede her başlığın kaç tanınmış cevabı olduğu
+yazar, uzun listelerde arama kutusu vardır (Türkçe katlanır: "besik" → Beşiktaş), HEPSİ / HİÇBİRİ düğmeleri
+listeyi topluca çevirir. Kulüp türü kapatılamaz ama içindeki kulüpler tek tek kapatılabilir; çok az kulüp
+kalırsa ızgara kurulamaz ve seçici uyarır. Seçimler odada saklanır (`settings.cats` + `settings.off`) ve
+oda özetinde görünür ("Kapalı: teknik direktör · 2 başlık kapalı"). Liste sunucudan `cats/list` ile
+bir kez alınır (~300 başlık, 14 KB).
 
-- **Klasik:** herkesin bildiği kulüpler + ülke, lig, kupa, menajer ve joker karışımı. Her ızgarada en az
-  bir Türk büyüğü bulunur; Fenerbahçe ve Beşiktaş öne çıkar.
+**Aynı türde eşit şans:** başlıklar tanınmışlığa göre ağırlıklandırılmaz — bir kulüp neyse öteki de o.
+Izgaraların ~%80'inde (Uzman'da %70) bir kulüp yuvası Süper Lig'e ayrılır ve 11-16 Türk kulübü arasından
+eşit şansla çekilir; bir ızgarada en çok bir Türk kulübü olur. Son 3 maçta çıkmış başlıklar geri plana
+atılır, aynı ızgara üst üste gelmez.
+
+**Özel şartlar (14 + 3 Türkiye şartı — `WILDCARDS`):** ŞL finali oynadı · **ŞL finalinde gol attı** ·
+Dünya Kupası finali oynadı · **DK finalinde gol attı** · **ŞL + Dünya Kupası** (ikisini de kazandı) ·
+treble kazandı · 5 büyük ligin 3+'ünde / 4+'ünde oynadı · 3+ Şampiyonlar Ligi · 3+ kez La Liga /
+Premier Lig / Serie A / Bundesliga / Süper Lig şampiyonu. Türkiye şartları ayrı: GS-FB-BJK'den en az
+ikisinde oynadı · Süper Lig'de oynamış yabancı · yurt dışında oynamış Türk.
+Her şartın ızgarada kendi kısa işareti var (F, FG, DKF, DKG, Ş+D, 3×, PL …).
+
+"Final oynadı" = kazanan **ve** finalde kaybeden takımın o tarihteki kadrosu (kupa maddesinin bilgi
+kutusundaki `second_other` / `second` satırı). "Finalde gol attı" finalin kendi Wikipedia maddesindeki
+maç kutusunun gol satırlarından çıkar (1956'dan bugüne 94 final, `goals1`/`goals2` → oyuncu bağlantıları).
+Bariz hücreler engellenir: "3+ ŞL × ŞL kazandı" ya da "ŞL finali oynadı × ŞL kazandı" gibi bir şart kendi
+kupasıyla eşleşmez (`grid.js` → `IMPLIES_CUP`); finalde gol atmak kupayı getirmediği için o çift serbest.
+
+- **Klasik:** herkesin bildiği kulüpler + ülke, lig, kupa, hoca, özel şart, boy karışımı. Türk kulübü yuvasına
+  tanınmış futbolcusu yeterli 11 Süper Lig takımı girer (Beşiktaş kadar Antalyaspor, Konyaspor, Sivasspor da).
 - **Hızlı:** Klasik başlıklar, 3×3, az hamle.
-- **Uzman:** 104 kulübün tamamı, mevkiler ve daha az bilinen hocalar; bir satır ülke/lig/kupa olabilir;
+- **Uzman:** mevkiler, uç boy eşikleri, alt kademe lig/kupa/hoca ve daha zor şartlar; bir satır ülke/lig/kupa olabilir;
   rakibin hücresini başka bir futbolcuyla **çalabilirsin** (çalınan hücre kilitlenir).
 - Tur süresi: 15 / 30 / 45 / 60 sn. Hızlı maç (eşleştirme) Klasik + 30 sn.
 - Bariz hücreler üretilmez (Galatasaray × Türkiye, Galatasaray × Süper Lig). Her hücrenin moda
@@ -107,17 +147,31 @@ katılma/sorgulama (kod tahminine karşı) · IP başına 40 bağlantı · kulla
 
 ## Veri
 
-Şu anki derleme (2026-09-16): **50.141 futbolcu** (12.439'u tanınmış, en az 15 Wikipedia maddesi),
-104 kulüp, 69 milli takım, 10 lig, 133 menajer, 59 takım arkadaşı başlığı, 31 joker (+3 Türkiye jokeri).
-Her modda 150 denemede 150 ızgara üretiliyor (~1,5 ms).
+Şu anki derleme (2026-09-16): **31.644 futbolcu** (12.439'u tanınmış, en az 15 Wikipedia maddesi),
+104 kulüp (53'ü başlık), 69 milli takım, 10 lig, 12 kupa, 13 teknik direktör, 59 takım arkadaşı, 14 özel şart
+(+3 Türkiye şartı), 6 boy eşiği, 4 mevki.
+Her modda 300 denemede 300 ızgara üretiliyor (~1-3 ms).
+
+Derlemede 50.141 kayıt var; **hiçbir dilde 5'ten az Wikipedia maddesi olanlar (18.497 kişi) yüklenmez**
+(`MIN_SL`, `server/db.js`). En zor mod olan Uzman bile cevaplarını ilk sl≥5 futbolcu içinde arıyordu, yani
+ızgara üretimi etkilenmiyor; arama kutusu ise kimsenin bilmediği adaşlardan temizleniyor. Benzer isimlerde
+sıralama tanınmışlığa göredir: tam ad eşleşmesi, sonra adın tam bir kelimesi ("sanchez" → Alexis Sánchez),
+en sonda kelime başı ("silva" → Silvan).
 
 Futbolcu veritabanı **Wikidata**'dan (CC0) derlenir, **İngilizce Wikipedia** bilgi kutularıyla (CC BY-SA) düzeltilir:
 kulüp kariyeri, uyruk (temsil ettiği milli takım), mevki (P413), doğum yılı, lig (sezon sezon).
 
+**Boy** ayrı bir dosyada: `server/data/heights.json` (qid → cm), `npm run data:heights` ile Wikidata P2048'den
+çekilir (normalleştirilmiş değer, en iyi rütbeli ifade; 140-230 cm dışı atılır). 24.383 kişide boy var:
+**yıldızların %99'u, tanınmışların %92'si**. Ayrı dosya, `data:enrich` db.json'u yeniden yazdığında kaybolmasın diye.
+Boyu bilinmeyen futbolcu hiçbir boy başlığına uymaz; yanlış cevap gerekçesi de "boyu verimizde yok" der —
+"1,90 m'den kısa" gibi doğru olmayabilecek bir şey yazılmaz.
+
 ```bash
 npm run data:resolve   # katalog adları → Wikidata kimlikleri (tools/resolved.json)
 npm run data:build     # SPARQL → server/data/db.json   (yanıtlar tools/.cache'e yazılır)
-npm run data:enrich    # Wikipedia kariyerleri, lig sezonları, kupalar, menajerler, jokerler, 2026-27 kadroları
+npm run data:enrich    # Wikipedia kariyerleri, lig sezonları, kupalar, hocalar, özel şartlar, 2026-27 kadroları
+npm run data:heights   # boy (P2048) → server/data/heights.json   (enrich'ten sonra da çalışır, önbellekli)
 node tools/facts.mjs   # bilinen kariyer gerçekleri (5 büyük lig + Süper Lig): ✓/✗
 node tools/audit.mjs   # db.json ↔ Wikipedia bilgi kutuları fark raporu → tools/audit.txt
 ```
@@ -135,8 +189,13 @@ node tools/audit.mjs   # db.json ↔ Wikipedia bilgi kutuları fark raporu → t
 - **Kupalar:** sezon kazananı (P1346) kulüpte, final tarihinde kadrodaysa kazanmış sayılır; o sırada başka kulüpte
   kiralıksa sayılmaz. Wikidata'da kazananı boş olan son sezonlar (ör. 2019-20 → 2025-26 Süper Lig) Wikipedia sezon
   sayfasının bilgi kutusundan tamamlanır. Milli takım kupalarında turnuvaya katılım (P1344) + o milli takımda oynamak aranır.
-- **Menajerler:** kulüp ve milli takımların baş antrenör dönemleri (P286) ile oyuncunun dönemi (başka kulüpteki kiralık
-  süresi düşülerek) en az ~2 ay çakışmalı. Türk büyüklerini ya da milli takımı çalıştırmış hocalar her zaman listede.
+- **Menajerler:** kulüp ve milli takımların baş antrenör dönemleri (P286) **+ hocanın kendi bilgi kutusundaki
+  `manageryears` satırları** ile oyuncunun dönemi (başka kulüpteki kiralık süresi düşülerek) en az ~2 ay çakışmalı.
+  Wikidata'da Benítez'in Liverpool'u, Terim'in milli takım dönemleri yok — ikinci kaynak onları getiriyor.
+- **Takım arkadaşı:** aynı kulüp ya da **A milli takımı**, en az ~4 ay çakışma. Alt yaş milli takımları ve kulüp
+  B/altyapı takımları sayılmaz (katalogda olmadıkları için "kulüp" sanılıyorlardı). Milli takım döneminin bitişi
+  Wikidata'da yoksa bilgi kutusundaki yıl, o da yoksa kulüp kariyerinin sonu kullanılır — eskiden "2,5 yıl sürdü"
+  sayıldığı için Çalhanoğlu'nun Türkiye dönemi 2016'da bitiyordu.
 - **Güncel transferler:** `../futbol-sim-2627` içindeki elle doğrulanmış 2026-27 kadroları (Türk kulüpleri + Avrupa'nın
   16 devi) isim + doğum yılıyla eşlenir. Yazım farkı (Mohamed/Muhammed Salah, Eljif/Elif Elmas) soyad + doğum yılı +
   uyruk + benzer ilk adla yakalanır; oyuncu iki kez eklenmez, kadrodaki yazım arama adı olur.
@@ -196,7 +255,7 @@ Oda kurarken seçilir; host lobide **AYARLAR** ile maçtan önce (ve rövanştan
 | Oyun tarzı | **Sırayla** (tur süresi 15/30/45/60 sn) · **Aynı anda** (sıra yok, ilk doğru bilen kapar, yanlış cevaba 3 sn ceza; maç süresi 1/2/3/5 dk) |
 | Kazanma şekli | **3'leme** (üçleyen yoksa berabere) · **En çok hücre** (3-4 kişide) · **Nadirlik puanı** (az bilinen doğru cevap çok puan: 10-100) |
 | Maç sayısı | Tek maç · 3 maçlık seri · 5 maçlık seri (turnuva: en çok maçı kazanan şampiyon) |
-| İpucu | Açık: maç başına 1 (yakın dönemden olası bir cevabın uyruğu, mevkisi, yaşı) · Kapalı |
+| İpucu | Açık: maç başına 1 — yakın dönemden olası bir cevabın **baş harfleri** ("A. G."), uyruğu, mevkisi, yaşı (kaç harf olduğu yazılmaz) · Kapalı |
 | Aynı futbolcu | Bir kez · Tekrar olur |
 
 Derbi ve Türkiye jokerleri: "GS · FB · BJK en az ikisinde oynadı", "Süper Lig'de oynamış yabancı", "Yurt dışında

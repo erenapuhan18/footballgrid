@@ -1,8 +1,8 @@
 /* FOOTBALLGRID zenginleştirme — build-data.mjs'in ürettiği tabanın üstüne:
    · kariyer dönemleri (P54 + başlangıç/bitiş tarihleri)
    · kupalar (Şampiyonlar Ligi, Avrupa Ligi, Dünya Kupası, EURO, lig şampiyonlukları)
-   · menajerler (kulüp/milli takım teknik direktör dönemleriyle çakışma → "X ile çalışmış")
-   · jokerler (Ballon d'Or, Dünya Kupası'nda oynamak, doğum yılı, 5+ takım, sonradan teknik direktör)
+   · menajerler (catalog.mjs MANAGERS listesindeki 13 hoca; dönem çakışması → "X ile çalışmış")
+   · özel şartlar (final oynamak/finalde gol atmak, treble, çoklu şampiyonluk, 5 büyük lig)
    · güncel kadrolar (futbol-sim-2627'nin elle doğrulanmış 2026-27 kadroları)
 
    node tools/enrich.mjs      (npm run data:enrich) — taban server/data/db.base.json'da saklanır */
@@ -10,9 +10,9 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CLUBS, NATIONS, LEAGUES, COMPETITIONS, WILDCARDS, TREBLES, SIM_CLUBS, SIM_NATIONS, SIM_POS } from './catalog.mjs';
+import { CLUBS, NATIONS, LEAGUES, MANAGERS, COMPETITIONS, WILDCARDS, TREBLES, SIM_CLUBS, SIM_NATIONS, SIM_POS } from './catalog.mjs';
 import { sparql, pool, values, chunk, push, Q, getJSON, cached, sleep } from './wd.mjs';
-import { enTitles, infoboxes, titleQids, leagueSeasons, span } from './wiki.mjs';
+import { enTitles, infoboxes, titleQids, leagueSeasons, span, parseYears } from './wiki.mjs';
 import { fold } from '../server/text.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -85,7 +85,10 @@ for (const p of P) {
   for (const st of p.stints) {
     if (st.ps === null || st.pe !== null) continue;
     const next = st.key.startsWith('n') ? null : club.find((x) => x !== st && x.ps > st.ps + 0.2 && x.key !== st.key);
-    st.pe = next ? next.ps : st.ps >= 2019 ? NOW : st.ps + 2.5;
+    // Milli takımda bitmemiş dönem "2,5 yıl sürdü" sayılamaz (Çalhanoğlu 2013-? → 2016 oluyordu):
+    // geçici olarak açık bırakılır, 1c-2'de bilgi kutusu ya da kulüp kariyerinin sonuyla kapatılır.
+    st.open = !next;
+    st.pe = next ? next.ps : st.key.startsWith('n') || st.ps >= 2019 ? NOW : st.ps + 2.5;
   }
 }
 
@@ -182,6 +185,35 @@ for (const p of P) {
   p.nats = next;
 }
 console.log(`  uyruk = temsil ettiği milli takım: ${natChanged} futbolcuda değişti`);
+
+/* 1c-2) A milli takım dönemleri. İki iş: (1) Wikidata'da P54 kaydı yoksa bilgi kutusundaki nationalyears
+   satırından ekle, (2) bitişi bilinmeyen dönemi bilgi kutusundaki yılla, o da yoksa kulüp kariyerinin
+   sonuyla kapat. "X ile oynadı" başlığı milli takımı da saydığı için bu dönemler doğru olmalı. */
+let ntAdded = 0;
+let ntClosed = 0;
+for (const p of P) {
+  const ibNt = new Map(); // milli takım anahtarı → [başlangıç, bitiş]
+  for (const [t, a, b] of ibOf(p)?.n || []) {
+    const ni = natOfNt.get(QOF.get(t));
+    if (ni !== undefined && a) ibNt.set('n' + ni, [a, b]); // yalnız katalogdaki A milli takımları
+  }
+  for (const [key, [a, b]] of ibNt) {
+    if (p.stints.some((st) => st.key === key && st.ps !== null)) continue;
+    const sp = span(a, b, NOW);
+    if (!sp) continue;
+    p.stints.push({ key, ps: sp[0], pe: sp[1] });
+    ntAdded++;
+  }
+  const lastClub = Math.max(0, ...p.stints.filter((st) => !st.key.startsWith('n') && st.pe !== null).map((st) => st.pe));
+  for (const st of p.stints) {
+    if (!st.key.startsWith('n') || !st.open || st.ps === null) continue;
+    const end = ibNt.get(st.key)?.[1];
+    const guess = end ? end + 0.45 : lastClub > st.ps ? Math.min(lastClub, NOW) : NOW;
+    if (guess < st.pe) ntClosed++;
+    st.pe = Math.max(st.ps + 0.3, guess);
+  }
+}
+console.log(`  milli takım dönemi: ${ntAdded} eklendi, ${ntClosed} bitişi düzeltildi`);
 
 /* ───────── 1d) doğum yılı: Wikidata'da yoksa, akla yatmıyorsa (Quaresma "1000") ya da bilgi kutusundan farklıysa
    (Pepe 1984 ↔ 1983 — Wikidata'da iki tarih var, ilki alınıyordu) bilgi kutusundaki yıl geçerli. */
@@ -364,48 +396,7 @@ function together(p, st, a, b) {
 }
 const awayOnLoan = (p, st, D) => loansAway(p, st.key).some((l) => l.ps <= D && D <= l.pe);
 
-/* ───────── 3) teknik direktör dönemleri → menajer kategorileri */
-
-console.log('» teknik direktörler');
-const coachRows = await sparql(
-  `SELECT ?t ?m ?s ?e WHERE { VALUES ?t { ${values([...teamKey.keys()])} } ?t p:P286 ?st . ?st ps:P286 ?m . OPTIONAL { ?st pq:P580 ?s } OPTIONAL { ?st pq:P582 ?e } }`,
-  'teknik direktör dönemleri',
-);
-const coachSet = new Set(coachRows.map((r) => Q(r.m)));
-const under = new Map(); // menajer → Set(futbolcu)
-for (const r of coachRows) {
-  const cs = yr(r.s, false);
-  if (cs === null) continue;
-  let ce = yr(r.e, true);
-  if (ce === null) ce = cs >= 2023 ? NOW : cs + 2;
-  const m = Q(r.m);
-  for (const { p, st } of byTeam.get(tk(Q(r.t))) || []) {
-    if (together(p, st, cs, ce) > 0.15) (under.get(m) || under.set(m, new Set()).get(m)).add(p);
-  }
-}
-const knownCount = (set) => [...set].filter((p) => p.sl >= KNOWN_SL).length;
-// Türk büyüklerini ya da milli takımı çalıştırmış hocalar ayrıca korunur (Klasik'te de çıksınlar)
-const TURK_TEAMS = new Set([...['gs', 'fb', 'bjk', 'ts'].map((k) => 'c' + CLUBS.findIndex((c) => c[0] === k)), 'n' + NATIONS.findIndex((n) => n[0] === 'tr')]);
-const turkMgr = new Set(coachRows.filter((r) => TURK_TEAMS.has(tk(Q(r.t)))).map((r) => Q(r.m)));
-const mgrCands = [...under].map(([m, set]) => [m, set, knownCount(set)]).filter(([m, , k]) => k >= 10 || (turkMgr.has(m) && k >= 6));
-const mgrMeta = new Map();
-for (const c of chunk(mgrCands.map(([m]) => m), 300)) {
-  for (const r of await sparql(
-    `SELECT ?m ?sl ?l_tr ?l_en ?l_mul WHERE { VALUES ?m { ${values(c)} } ?m wikibase:sitelinks ?sl .
-      OPTIONAL { ?m rdfs:label ?l_tr FILTER(LANG(?l_tr) = "tr") } OPTIONAL { ?m rdfs:label ?l_en FILTER(LANG(?l_en) = "en") }
-      OPTIONAL { ?m rdfs:label ?l_mul FILTER(LANG(?l_mul) = "mul") } }`,
-    'menajer adları',
-  )) mgrMeta.set(Q(r.m), { sl: Number(r.sl), name: r.l_tr || r.l_en || r.l_mul || null });
-}
-const ranked = mgrCands.filter(([m]) => mgrMeta.get(m)?.name).sort((a, b) => b[2] - a[2]);
-const managers = [...ranked.slice(0, 90), ...ranked.slice(90).filter(([m]) => turkMgr.has(m))].map(([m, set, k]) => {
-  const meta = mgrMeta.get(m);
-  const klasik = turkMgr.has(m) ? k >= 12 : meta.sl >= 40 && k >= 15;
-  return { key: m, qid: m, name: meta.name, tier: klasik ? 'k' : 'u', set, known: k };
-});
-managers.forEach((mg, i) => mg.set.forEach((p) => p.mgrs.add(i)));
-
-/* ───────── 4) kupalar */
+/* ───────── 2c) Wikipedia yardımcıları: madde metni, şablon alanı, takım adı eşleme, turnuva kadrosu */
 
 function labelYear(lbl) {
   if (!lbl) return null;
@@ -430,41 +421,208 @@ function matchTeam(text, kind) {
   }
   return best?.key || null;
 }
-async function wikiWinner(label, kind) {
-  const title = label.replace(/(\d{4})-(\d{2})\b/, '$1–$2');
-  const j = await cached('wp:' + title, async () => {
+/** Bir Wikipedia maddesinin kaynak metni. `lead` yalnız giriş + bilgi kutusu, yoksa tüm madde. */
+async function wikitext(title, lead = true) {
+  const j = await cached((lead ? 'wp:' : 'wpfull:') + title, async () => {
     await sleep(300);
-    return getJSON('https://en.wikipedia.org/w/api.php?action=parse&format=json&prop=wikitext&section=0&redirects=1&page=' + encodeURIComponent(title), {}, 3).catch(() => null);
+    return getJSON(
+      `https://en.wikipedia.org/w/api.php?action=parse&format=json&prop=wikitext${lead ? '&section=0' : ''}&redirects=1&page=` +
+        encodeURIComponent(title),
+      {},
+      3,
+    ).catch(() => null);
   });
-  const wt = j?.parse?.wikitext?.['*'] || '';
-  const m = /\|\s*(?:champions|winners|champion)\s*=\s*([^\n]*)/i.exec(wt);
-  if (!m) return null;
-  const links = [...m[1].matchAll(/\[\[([^\]|]+)/g)].map((x) => x[1]).filter((x) => !/^(file|image):/i.test(x));
-  return matchTeam(links[0] || m[1], kind);
+  return j?.parse?.wikitext?.['*'] || '';
 }
 
-/** Sezon maddesinin bilgi kutusundan ikinci (finalde kaybeden) takım — "final oynamış" jokeri için. */
-async function wikiRunnerUp(label, kind) {
-  const title = label.replace(/(\d{4})-(\d{2})\b/, '$1–$2');
-  const j = await cached('wp:' + title, async () => {
-    await sleep(300);
-    return getJSON('https://en.wikipedia.org/w/api.php?action=parse&format=json&prop=wikitext&section=0&redirects=1&page=' + encodeURIComponent(title), {}, 3).catch(() => null);
-  });
-  const wt = j?.parse?.wikitext?.['*'] || '';
-  const m = /\|\s*(?:runners-?up|second)\s*=\s*([^\n]*)/i.exec(wt);
-  if (!m) return null;
-  const links = [...m[1].matchAll(/\[\[([^\]|]+)/g)].map((x) => x[1]).filter((x) => !/^(file|image):/i.test(x));
-  return matchTeam(links[0] || m[1], kind);
+/** Bilgi kutusu / şablon alanı. Değer sonraki "|alan =" satırına kadar sürer (çok satırlı olabilir). */
+function tplField(wt, names) {
+  const m = new RegExp(`\\n\\s*\\|\\s*(?:${names})[a-z_]*\\s*=([^]*?)(?=\\n\\s*[|}])`, 'i').exec(wt);
+  return m ? m[1] : '';
 }
+const wikiLinks = (s) =>
+  [...String(s).matchAll(/\[\[([^\]|#]+)/g)].map((x) => x[1].trim()).filter((x) => !/^(file|image|category):/i.test(x));
+
+/** Sezon/edisyon maddesinin bilgi kutusundan kazanan ya da finalde kaybeden takım.
+    Alan adları yarışmaya göre değişiyor: "champion_other"/"second_other" (ŞL), "champion"/"second" (DK). */
+async function wikiTeam(label, kind, which) {
+  const val = tplField(await wikitext(label.replace(/(\d{4})-(\d{2})\b/, '$1–$2')), which === 'winner' ? 'champion|winner' : 'second|runner');
+  return val ? matchTeam(wikiLinks(val)[0] || val, kind) : null;
+}
+
+/** Finalin kendi maddesindeki gol atanlar ("goals1"/"goals2" alanları) → Wikipedia başlıkları. */
+async function finalScorers(title) {
+  const wt = await wikitext(title, false);
+  if (!wt) return null;
+  return [...new Set([...wikiLinks(tplField(wt, 'goals1')), ...wikiLinks(tplField(wt, 'goals2'))])];
+}
+
+/* Milli takım kadroları: turnuvanın "… squads" maddesi. Wikidata'nın katılım kaydı (P1344) Dünya Kupası'nda
+   iyi ama Copa América'da neredeyse boş (Roberto Carlos 1997/99 kazandı, kaydı yok) — kadro maddesi
+   1958'den bugüne her turnuvada duruyor ve 20-23 oyuncuyu ad ad veriyor. */
+const NT_ALIAS = {
+  Germany: ['West Germany', 'East Germany'],
+  Russia: ['Soviet Union', 'CIS'],
+  Serbia: ['Yugoslavia', 'Serbia and Montenegro', 'FR Yugoslavia'],
+  Czechia: ['Czech Republic', 'Czechoslovakia'],
+};
+
+/** Maddedeki "=== Brazil ===" bölümü: bir sonraki aynı ya da üst seviye başlığa kadar. */
+function wikiSection(wt, name) {
+  const m = new RegExp(`^\\s*(={2,4})\\s*(?:\\{\\{[^}]*\\}\\}\\s*)?${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\1\\s*$`, 'im').exec(wt);
+  if (!m) return '';
+  const rest = wt.slice(m.index + m[0].length);
+  const next = new RegExp(`^\\s*={2,${m[1].length}}[^=]`, 'm').exec(rest);
+  return next ? rest.slice(0, next.index) : rest;
+}
+
+/** Turnuva + ülke → kadrodaki oyuncuların Wikipedia başlıkları (yoksa null). */
+async function wikiSquad(editionLabel, countryEn) {
+  const wt = await wikitext(editionLabel + ' squads', false);
+  if (!wt) return null;
+  for (const name of [countryEn, ...(NT_ALIAS[countryEn] || [])]) {
+    const sec = wikiSection(wt, name);
+    // Yalnız "name = [[…]]" parametreleri: club=[[…]] ve "Head coach: [[…]]" satırları kadroya girmesin
+    const titles = [...new Set([...sec.matchAll(/\|\s*name\s*=\s*\[\[([^\]|#]+)/gi)].map((x) => x[1].trim()))];
+    if (titles.length >= 14) return titles;
+  }
+  return null;
+}
+
+
+/* ───────── 3) teknik direktör dönemleri → menajer kategorileri */
+
+console.log('» teknik direktörler');
+const coachRows = await sparql(
+  `SELECT ?t ?m ?s ?e WHERE { VALUES ?t { ${values([...teamKey.keys()])} } ?t p:P286 ?st . ?st ps:P286 ?m . OPTIONAL { ?st pq:P580 ?s } OPTIONAL { ?st pq:P582 ?e } }`,
+  'teknik direktör dönemleri',
+);
+const coachSet = new Set(coachRows.map((r) => Q(r.m)));
+const under = new Map(); // menajer → Set(futbolcu)
+for (const r of coachRows) {
+  const cs = yr(r.s, false);
+  if (cs === null) continue;
+  let ce = yr(r.e, true);
+  if (ce === null) ce = cs >= 2023 ? NOW : cs + 2;
+  const m = Q(r.m);
+  for (const { p, st } of byTeam.get(tk(Q(r.t))) || []) {
+    if (together(p, st, cs, ce) > 0.15) (under.get(m) || under.set(m, new Set()).get(m)).add(p);
+  }
+}
+/* Kulüplerin P286'sı hocaların dönemlerini eksik veriyor: Benítez'in Liverpool (2004-2010) ve Valencia
+   dönemleri, Terim'in Türkiye milli takımı dönemleri Wikidata'da hiç yok. Liste 13 kişi olduğu için
+   herkesin kendi Wikipedia bilgi kutusundaki "manageryears/managerclubs" satırları da okunur. */
+console.log('  hoca bilgi kutuları');
+const mgrTitles = await enTitles(MANAGERS.map(([q]) => q));
+let ibSpells = 0;
+for (const [qid, name] of MANAGERS) {
+  const title = mgrTitles.get(qid);
+  const wt = title ? await wikitext(title) : '';
+  if (!wt) {
+    console.warn(`  !! ${name}: Wikipedia maddesi bulunamadı`);
+    continue;
+  }
+  const rows = new Map(); // sıra no → { years, club }
+  for (const m of wt.matchAll(/\|\s*manager(years|clubs)(\d*)\s*=\s*([^\n]*)/gi)) {
+    const row = rows.get(m[2]) || rows.set(m[2], {}).get(m[2]);
+    row[m[1].toLowerCase()] = m[3];
+  }
+  for (const { years, clubs } of rows.values()) {
+    if (!years || !clubs) continue;
+    // altyapı, B takımı ve yardımcı antrenörlük dönemleri sayılmaz
+    if (/assistant|\(youth\)|castilla|\bU-?\d\d\b|\bB\b\s*team|reserve/i.test(clubs)) continue;
+    const text = wikiLinks(clubs)[0] || clubs;
+    const key = matchTeam(text, 'club') || matchTeam(text, 'nt');
+    if (!key) continue;
+    const sp = span(...parseYears(years), NOW);
+    if (!sp) continue;
+    let added = 0;
+    for (const { p, st } of byTeam.get(key) || []) {
+      if (together(p, st, sp[0], sp[1]) > 0.15) {
+        const set = under.get(qid) || under.set(qid, new Set()).get(qid);
+        if (!set.has(p)) added++;
+        set.add(p);
+      }
+    }
+    if (added) ibSpells++;
+  }
+}
+console.log(`  bilgi kutusundan eklenen dönem: ${ibSpells}`);
+
+const knownCount = (set) => [...set].filter((p) => p.sl >= KNOWN_SL).length;
+// Türk büyüklerini ya da milli takımı çalıştırmış hocalar ayrıca korunur (Klasik'te de çıksınlar)
+const TURK_TEAMS = new Set([...['gs', 'fb', 'bjk', 'ts'].map((k) => 'c' + CLUBS.findIndex((c) => c[0] === k)), 'n' + NATIONS.findIndex((n) => n[0] === 'tr')]);
+const turkMgr = new Set(coachRows.filter((r) => TURK_TEAMS.has(tk(Q(r.t)))).map((r) => Q(r.m)));
+// Liste elle seçilmiş (catalog.mjs MANAGERS): otomatik sıralama 131 hoca çıkarıyordu, çoğu tanınmıyordu
+const managers = MANAGERS.map(([qid, name]) => {
+  const set = under.get(qid) || new Set();
+  return { key: qid, qid, name, tier: 'k', set, known: knownCount(set) };
+}).filter((mg) => mg.known >= 5);
+managers.forEach((mg, i) => mg.set.forEach((p) => p.mgrs.add(i)));
+const mgrMissing = MANAGERS.filter(([q]) => !managers.some((mg) => mg.qid === q)).map(([, n]) => n);
+console.log(`  ${managers.length}/${MANAGERS.length} hoca: ${managers.map((mg) => `${mg.name} (${mg.known})`).join(' · ')}`);
+if (mgrMissing.length) console.warn(`  !! oyuncu bulunamayan hoca: ${mgrMissing.join(', ')}`);
+void turkMgr;
+
+/* ───────── 4) kupalar */
 
 console.log('» kupalar');
 const edParticipants = new Map(); // turnuva QID → [futbolcu]
 for (const [q, list] of extras) for (const x of list) if (x.k === 'e' && byQid.get(q)) push(edParticipants, x.v, byQid.get(q));
 const wcEditions = new Set();
 let wikiFilled = 0;
+let wikiSquads = 0; // kadro maddesinden alınan milli takım kadrosu sayısı
 const cupReport = [];
+const finalTitles = []; // [yarışma, finalin Wikipedia başlığı] — "finalde gol attı" için
+/** Kulüp kadrosu: finalin oynandığı tarihte kulüpte ve başka yerde kiralık değil. */
+const clubSquad = (wk, D) =>
+  (byTeam.get(wk) || []).filter(({ p, st }) => st.ps <= D && D <= st.pe && !awayOnLoan(p, st, D)).map(({ p }) => p);
+/** Turnuvaya katılmış (P1344) ve o milli takımda oynamış oyuncular.
+    Önce oyuncunun oynadığı milli takım; uyruk yalnızca milli takım bilgisi hiç yoksa
+    (çifte vatandaş Crespo/Agüero/Higuaín başka ülkenin kupasını almasın). */
+const ntParticipants = (wk, seasonQ) => {
+  const ni = Number(wk.slice(1));
+  const plays = (p) => p.stints.some((st) => st.key === wk);
+  const noNt = (p) => !p.stints.some((st) => st.key.startsWith('n'));
+  return (edParticipants.get(seasonQ) || []).filter((p) => plays(p) || (noNt(p) && p.nats.has(ni)));
+};
+
+/** Milli takım kadrosu: önce turnuvanın kadro maddesi, olmazsa P1344, o da zayıfsa milli takım dönemi. */
+const ntSquad = async (wk, seasonQ, D, editionLabel) => {
+  const part = ntParticipants(wk, seasonQ);
+  const en = NATIONS[Number(wk.slice(1))]?.[3].replace(/ (men's )?national.*$/i, '');
+  if (en && editionLabel) {
+    const titles = await wikiSquad(editionLabel, en);
+    if (titles) {
+      const QM = await titleQids(titles);
+      const ps = titles.map((t) => byQid.get(QM.get(t))).filter(Boolean);
+      if (ps.length >= 10) {
+        wikiSquads++;
+        return [...new Set([...ps, ...part])]; // kadro maddesi esas, P1344 üstüne eklenir
+      }
+    }
+  }
+  // Katılım kaydı da zayıfsa (eski turnuvalar) milli takım dönemine düş
+  if (part.length >= 12) return part;
+  const fall = (byTeam.get(wk) || []).filter(({ st }) => st.ps <= D && D <= st.pe && st.pe - st.ps < 12).map(({ p }) => p);
+  return [...new Set([...part, ...fall])];
+};
 for (const [ci, comp] of COMPETITIONS.entries()) {
   const [key, , , src, kind] = comp;
+  // Oyuncunun kendi ödülü (Ballon d'Or): sezon/kadro hesabı yok, P166 yeter
+  if (kind === 'award') {
+    const aq = src.slice(src.indexOf(':') + 1);
+    let n = 0;
+    for (const p of P) {
+      const times = ((p.qid && extras.get(p.qid)) || []).filter((x) => x.k === 'a' && x.v === aq).length;
+      if (!times) continue;
+      p.cups.add(ci);
+      (p.cupN ||= new Map()).set(ci, times);
+      n++;
+    }
+    cupReport.push(`${key}:ödül/${n}`);
+    continue;
+  }
   const cq = src.startsWith('lg:') ? R.leagues[src.slice(3)]?.qid : src;
   if (!cq) continue;
   const rows = await sparql(
@@ -485,7 +643,7 @@ for (const [ci, comp] of COMPETITIONS.entries()) {
     if (!D || D > NOW) continue;
     let winKeys = [...s.winners].map(tk).filter((k) => (kind === 'nt' ? k.startsWith('n') : !k.startsWith('n')) && !/^Q\d+$/.test(k) || (kind === 'club' && /^Q\d+$/.test(k) && byTeam.has(k)));
     if (!winKeys.length && D >= 1990 && s.lbl) {
-      const w = await wikiWinner(s.lbl, kind);
+      const w = await wikiTeam(s.lbl, kind, 'winner');
       if (w) {
         winKeys = [w];
         wikiFilled++;
@@ -493,30 +651,25 @@ for (const [ci, comp] of COMPETITIONS.entries()) {
     }
     if (!winKeys.length) continue;
     seasonsUsed++;
-    // Finalde kadroda olmak: kazanan + Wikipedia kutusundaki ikinci takım ("ŞL finali oynamış" jokeri)
-    if (key === 'ucl') {
-      const second = s.lbl ? await wikiRunnerUp(s.lbl, kind) : null;
+    // Finalde kadroda olmak: kazanan + bilgi kutusundaki ikinci takım ("final oynadı" özel şartı)
+    if (key === 'ucl' || key === 'wc') {
+      const second = s.lbl ? await wikiTeam(s.lbl, kind, 'second') : null;
       for (const fk of [...winKeys, second].filter(Boolean)) {
-        for (const { p, st } of byTeam.get(fk) || []) if (st.ps <= D && D <= st.pe && !awayOnLoan(p, st, D)) p.uclFinal = true;
+        for (const p of kind === 'club' ? clubSquad(fk, D) : await ntSquad(fk, s.q, D, s.lbl)) {
+          if (key === 'ucl') p.uclFinal = true;
+          else p.wcFinal = true;
+        }
       }
+      const y = Math.floor(D);
+      finalTitles.push([key, key === 'ucl' ? `${y} ${y >= 1993 ? 'UEFA Champions League' : 'European Cup'} final` : `${y} FIFA World Cup final`]);
     }
     for (const wk of winKeys) {
       let winners = [];
       if (kind === 'club') {
-        winners = (byTeam.get(wk) || []).filter(({ p, st }) => st.ps <= D && D <= st.pe && !awayOnLoan(p, st, D)).map(({ p }) => p);
+        winners = clubSquad(wk, D);
         if (key === 'ucl') for (const p of winners) (p.uclClubs ||= new Set()).add(wk);
       } else {
-        const ni = Number(wk.slice(1));
-        // Önce oyuncunun oynadığı milli takım; uyruk yalnızca milli takım bilgisi hiç yoksa
-        // (çifte vatandaş Crespo/Agüero/Higuaín başka ülkenin kupasını almasın).
-        const plays = (p) => p.stints.some((st) => st.key === wk);
-        const noNt = (p) => !p.stints.some((st) => st.key.startsWith('n'));
-        winners = (edParticipants.get(s.q) || []).filter((p) => plays(p) || (noNt(p) && p.nats.has(ni)));
-        // Katılım kaydı zayıf turnuvalarda (ör. 2022) milli takım dönemine düş
-        if (winners.length < 12) {
-          const fall = (byTeam.get(wk) || []).filter(({ st }) => st.ps <= D && D <= st.pe && st.pe - st.ps < 12).map(({ p }) => p);
-          winners = [...new Set([...winners, ...fall])];
-        }
+        winners = await ntSquad(wk, s.q, D, s.lbl);
       }
       for (const p of winners) {
         p.cups.add(ci);
@@ -527,7 +680,32 @@ for (const [ci, comp] of COMPETITIONS.entries()) {
   }
   cupReport.push(`${key}:${seasonsUsed} sezon/${won}`);
 }
-console.log('  ' + cupReport.join(' · ') + ` · Wikipedia'dan tamamlanan kazanan: ${wikiFilled}`);
+console.log('  ' + cupReport.join(' · ') + ` · Wikipedia'dan tamamlanan kazanan: ${wikiFilled} · kadro maddesinden kadro: ${wikiSquads}`);
+
+/* ───────── 4a) finalde gol atanlar: finalin maddesindeki maç kutusunun gol satırları */
+
+const goalTitles = { ucl: new Set(), wc: new Set() };
+let noFinal = 0;
+for (const [key, title] of finalTitles) {
+  const sc = await finalScorers(title);
+  if (sc === null) {
+    noFinal++;
+    continue;
+  }
+  for (const t of sc) goalTitles[key].add(t);
+}
+const GQ = await titleQids([...goalTitles.ucl, ...goalTitles.wc]);
+const goalQids = { ucl: new Set(), wc: new Set() };
+for (const key of ['ucl', 'wc']) for (const t of goalTitles[key]) if (GQ.get(t)) goalQids[key].add(GQ.get(t));
+for (const p of P) {
+  if (p.qid && goalQids.ucl.has(p.qid)) p.uclFinalGoal = true;
+  if (p.qid && goalQids.wc.has(p.qid)) p.wcFinalGoal = true;
+}
+console.log(
+  `  final maddeleri: ${finalTitles.length} (${noFinal} bulunamadı) · ŞL finalinde gol atan ${P.filter((p) => p.uclFinalGoal).length}` +
+    ` · DK finalinde gol atan ${P.filter((p) => p.wcFinalGoal).length} · DK finali oynayan ${P.filter((p) => p.wcFinal).length}` +
+    ` · ŞL finali oynayan ${P.filter((p) => p.uclFinal).length}`,
+);
 
 /* ───────── 4b) gol kralı ödülleri: oyuncularda duran P166 ödüllerinin adlarını çöz, desene uyanları işaretle */
 
@@ -548,39 +726,47 @@ const CUP_I = Object.fromEntries(COMPETITIONS.map((c, i) => [c[0], i]));
 const LG_I = Object.fromEntries(LEAGUES.map((l, i) => [l[0], i]));
 const CLUB_I = Object.fromEntries(CLUBS.map((c, i) => [c[0], i]));
 const BIG5 = ['eng', 'esp', 'ita', 'ger', 'fra'];
+// catalog.mjs'ten çıkarılan bir özel şart sessizce atlanır (yoksa p.wild'a undefined girerdi)
+const mark = (p, k) => {
+  if (W[k] !== undefined) p.wild.add(W[k]);
+};
 for (const p of P) {
   const ex = (p.qid && extras.get(p.qid)) || [];
-  if (ex.some((x) => x.k === 'a' && x.v === 'Q166177')) p.wild.add(W.ballon);
-  if (ex.some((x) => x.k === 'e' && wcEditions.has(x.v)) || p.cups.has(WC_I)) p.wild.add(W.wcplay);
-  if (p.by && p.by >= 2000) p.wild.add(W.y2000);
-  if (p.by && p.by < 1980) p.wild.add(W.pre1980);
-  if (new Set(p.stints.filter((st) => !st.key.startsWith('n')).map((st) => st.q || st.key)).size >= 8) p.wild.add(W.clubs8);
-  if (p.qid && coachSet.has(p.qid)) p.wild.add(W.coach);
+  if (ex.some((x) => x.k === 'a' && x.v === 'Q166177')) mark(p, 'ballon');
+  if (ex.some((x) => x.k === 'e' && wcEditions.has(x.v)) || p.cups.has(WC_I)) mark(p, 'wcplay');
+  if (p.by && p.by >= 2000) mark(p, 'y2000');
+  if (p.by && p.by < 1980) mark(p, 'pre1980');
+  if (new Set(p.stints.filter((st) => !st.key.startsWith('n')).map((st) => st.q || st.key)).size >= 8) mark(p, 'clubs8');
+  if (p.qid && coachSet.has(p.qid)) mark(p, 'coach');
 
-  const won = (k) => p.cupN?.get(CUP_I[k]) || 0;
-  if (won('ucl') >= 2) p.wild.add(W.ucl2);
-  for (const k of ['tr1', 'eng', 'esp', 'ita', 'ger']) if (won(k) >= 3) p.wild.add(W['lt3' + k]);
-  if (BIG5.filter((k) => won(k) > 0).length >= 2) p.wild.add(W.lt2big);
+  const won = (k) => (CUP_I[k] === undefined ? 0 : p.cupN?.get(CUP_I[k]) || 0);
+  if (won('ucl') >= 2) mark(p, 'ucl2');
+  for (const k of ['tr1', 'eng', 'esp', 'ita', 'ger']) if (won(k) >= 3) mark(p, 'lt3' + k);
+  if (BIG5.filter((k) => won(k) > 0).length >= 2) mark(p, 'lt2big');
   const big = BIG5.filter((k) => p.leagues.has(LG_I[k])).length;
-  if (big >= 3) p.wild.add(W.big3);
-  if (big >= 4) p.wild.add(W.big4);
-  if (p.by >= 1970 && p.by <= 1979) p.wild.add(W.d70);
-  if (p.by >= 1980 && p.by <= 1989) p.wild.add(W.d80);
-  if (p.by >= 1990 && p.by <= 1999) p.wild.add(W.d90);
+  if (big >= 3) mark(p, 'big3');
+  if (big >= 4) mark(p, 'big4');
+  if (p.by >= 1970 && p.by <= 1979) mark(p, 'd70');
+  if (p.by >= 1980 && p.by <= 1989) mark(p, 'd80');
+  if (p.by >= 1990 && p.by <= 1999) mark(p, 'd90');
   // Treble: o sezonun sonunda kadroda olmak (başka kulüpte kiralıkken sayılmaz)
   const treble = TREBLES.some(([ck, y]) => {
     const key = 'c' + CLUB_I[ck];
     const D = y + 0.4;
     return p.stints.some((st) => st.key === key && st.ps !== null && st.ps <= D && D <= st.pe && !awayOnLoan(p, st, D));
   });
-  if (treble) p.wild.add(W.treble);
-  if (won('ucl') >= 3) p.wild.add(W.ucl3);
-  if (p.uclFinal) p.wild.add(W.uclfinal);
-  if (p.uclClubs?.size >= 2) p.wild.add(W.ucl2clubs);
-  if (ex.some((x) => x.k === 'a' && scorerAwards.has(x.v))) p.wild.add(W.topscorer);
+  if (treble) mark(p, 'treble');
+  if (won('ucl') >= 3) mark(p, 'ucl3');
+  if (won('ucl') > 0 && won('wc') > 0) mark(p, 'uclwc');
+  if (p.uclFinal) mark(p, 'uclfinal');
+  if (p.uclFinalGoal) mark(p, 'uclfinalgoal');
+  if (p.wcFinal) mark(p, 'wcfinal');
+  if (p.wcFinalGoal) mark(p, 'wcfinalgoal');
+  if (p.uclClubs?.size >= 2) mark(p, 'ucl2clubs');
+  if (ex.some((x) => x.k === 'a' && scorerAwards.has(x.v))) mark(p, 'topscorer');
   const clubSt = p.stints.filter((st) => !st.key.startsWith('n') && st.pe !== null);
-  if (clubSt.some((st) => st.pe >= NOW - 0.01)) p.wild.add(W.active);
-  if (p.by && clubSt.length && Math.max(...clubSt.map((st) => st.pe)) - p.by >= 35) p.wild.add(W.age35);
+  if (clubSt.some((st) => st.pe >= NOW - 0.01)) mark(p, 'active');
+  if (p.by && clubSt.length && Math.max(...clubSt.map((st) => st.pe)) - p.by >= 35) mark(p, 'age35');
 
   // Bilgi kutusundaki lig maçı / golü: tek kulüpte 300+/500+ maç, tek kulüp kariyeri, 100+ gol, milli takım
   const ib = ibOf(p);
@@ -593,11 +779,11 @@ for (const p of P) {
       if (!loan) perm.set(k, (perm.get(k) || 0) + (caps || 0));
     }
     const most = per.size ? Math.max(...per.values()) : 0;
-    if (most >= 300) p.wild.add(W.apps300);
-    if (most >= 500) p.wild.add(W.apps500);
-    if (perm.size === 1 && [...perm.values()][0] >= 150) p.wild.add(W.oneclub);
+    if (most >= 300) mark(p, 'apps300');
+    if (most >= 500) mark(p, 'apps500');
+    if (perm.size === 1 && [...perm.values()][0] >= 150) mark(p, 'oneclub');
     const goals = ib.tg ?? ib.c.reduce((s, r) => s + (r[6] || 0), 0);
-    if (goals >= 100) p.wild.add(W.goals100);
+    if (goals >= 100) mark(p, 'goals100');
     let ntCaps = 0;
     let ntGoals = 0;
     for (const [t, , , caps, goals2] of ib.n) {
@@ -606,12 +792,16 @@ for (const p of P) {
       ntCaps = Math.max(ntCaps, caps || 0);
       ntGoals = Math.max(ntGoals, goals2 || 0);
     }
-    if (ntCaps >= 100) p.wild.add(W.nt100);
-    if (ntGoals >= 30) p.wild.add(W.nt30g);
+    if (ntCaps >= 100) mark(p, 'nt100');
+    if (ntGoals >= 30) mark(p, 'nt30g');
   }
 }
 
-/* ───────── 5b) takım arkadaşları: yıldızla aynı kulüpte, aynı dönemde en az ~4 ay birlikte oynamak */
+/* ───────── 5b) takım arkadaşları: yıldızla aynı kulüpte, aynı dönemde en az ~4 ay birlikte oynamak.
+   Milli takımda birlikte olmak sayılmaz — A milli takımı katalogda olduğu için anahtarı 'n…' ile başlıyor,
+   ama **alt yaş ve Olimpiyat milli takımları** (Brezilya U20, U23…) ile **kulüp B/altyapı takımları**
+   (Barça Atlètic, Real Madrid Castilla) katalogda yok, anahtarları QID → normal kulüp sanılıyordu.
+   Bu yüzden Ronaldinho'nun U20 kadrosu, Lamine Yamal'ın Atlètic kadrosu "ile oynadı" sayılıyordu. */
 
 console.log('» takım arkadaşları');
 const TURK_STARS = ['Hakan Şükür', 'Gheorghe Hagi', 'Alex de Souza', 'Arda Turan', 'Emre Belözoğlu', 'Rüştü Reçber',
@@ -619,13 +809,34 @@ const TURK_STARS = ['Hakan Şükür', 'Gheorghe Hagi', 'Alex de Souza', 'Arda Tu
   'Mauro Icardi', 'Mesut Özil', 'Edin Džeko', 'Romelu Lukaku', 'Victor Osimhen', 'Ricardo Quaresma'];
 const starPool = P.filter((p) => p.qid && p.stints.some((st) => st.ps !== null && st.pe > 1990 && !st.key.startsWith('n')));
 const stars = [...new Set([...starPool.slice(0, 44), ...starPool.filter((p) => TURK_STARS.includes(p.name))])];
+// Katalog dışı takımların adı: milli takım mı, B/altyapı takımı mı, gerçek kulüp mü?
+const starTeamQids = [...new Set(stars.flatMap((s) => s.stints.map((st) => st.key)).filter((k) => /^Q\d+$/.test(k)))];
+const teamLabel = new Map();
+for (const c of chunk(starTeamQids, 300)) {
+  for (const r of await sparql(
+    `SELECT ?t ?l WHERE { VALUES ?t { ${values(c)} } ?t rdfs:label ?l . FILTER(LANG(?l) = "en") }`,
+    'katalog dışı takım adları',
+  )) teamLabel.set(Q(r.t), r.l);
+}
+const NOT_A_CLUB = /(?:^|\s)national\b|\bolympic|under-?\d|\bu-?\d\d\b|\breserves?\b|\bcastilla\b|\batlètic\b|\byouth\b|\bacademy\b|\bjuvenil\b|\bprimavera\b|\b(?:II|III|B|C)$/i;
+const isClubStint = (st) => st.ps !== null && !st.key.startsWith('n') && !NOT_A_CLUB.test(teamLabel.get(st.key) || '');
+const skippedTeams = new Set();
+
+// A milli takımı da sayılır (kullanıcı istedi): Rüştü, "Hakan Şükür ile oynadı" cevabıdır.
+// Alt yaş ve Olimpiyat kadroları sayılmaz — onlar katalog dışı olduğu için zaten NOT_A_CLUB'a takılıyor.
+const isNtStint = (st) => st.ps !== null && st.key.startsWith('n');
 const mates = [];
 for (const star of stars) {
   const set = new Set();
   for (const st of star.stints) {
-    if (st.ps === null || st.key.startsWith('n')) continue;
+    const club = isClubStint(st);
+    if (!club && !isNtStint(st)) {
+      if (st.ps !== null && teamLabel.has(st.key)) skippedTeams.add(teamLabel.get(st.key));
+      continue;
+    }
     for (const { p, st: o } of byTeam.get(st.key) || []) {
-      if (p !== star && o.ps !== null && Math.min(st.pe, o.pe) - Math.max(st.ps, o.ps) >= 0.3) set.add(p);
+      const ok = club ? isClubStint(o) : isNtStint(o);
+      if (p !== star && ok && Math.min(st.pe, o.pe) - Math.max(st.ps, o.ps) >= 0.3) set.add(p);
     }
   }
   const known = [...set].filter((p) => p.sl >= KNOWN_SL).length;
@@ -634,6 +845,7 @@ for (const star of stars) {
 mates.sort((a, b) => b.known - a.known);
 mates.forEach((m, i) => m.set.forEach((p) => (p.mates ||= new Set()).add(i)));
 console.log(`  ${mates.length} yıldız · ${mates.slice(0, 6).map((m) => `${m.name} (${m.known})`).join(' · ')}`);
+console.log(`  kulüp sayılmayan ${skippedTeams.size} takım: ${[...skippedTeams].slice(0, 10).join(', ')}`);
 
 /* ───────── 6) yaz */
 
@@ -678,12 +890,17 @@ show('GS × Süper Lig şampiyonu', (p) => p.clubs.has(ci('gs')) && p.cups.has(c
 show('BJK × Süper Lig şampiyonu', (p) => p.clubs.has(ci('bjk')) && p.cups.has(cupI('tr1')));
 show('Real Madrid × ŞL', (p) => p.clubs.has(ci('rma')) && p.cups.has(cupI('ucl')));
 show('Dünya Kupası (Arjantin)', (p) => p.cups.has(cupI('wc')) && p.nats.has(NATIONS.findIndex((n) => n[0] === 'ar')));
-show("Ballon d'Or", (p) => p.wild.has(W.ballon));
+show("Ballon d'Or", (p) => p.cups.has(cupI('ballon')));
+show('Konferans Ligi', (p) => p.cups.has(cupI('uecl')));
+show('Copa América', (p) => p.cups.has(cupI('copa')));
+show('ŞL finalinde gol', (p) => p.wild.has(W.uclfinalgoal));
+show('DK finalinde gol', (p) => p.wild.has(W.wcfinalgoal));
+show('ŞL + Dünya Kupası', (p) => p.wild.has(W.uclwc));
 show('FB (güncel)', (p) => p.stints.some((st) => st.key === 'c' + ci('fb') && st.pe >= NOW - 0.01));
 show('BJK (güncel)', (p) => p.stints.some((st) => st.key === 'c' + ci('bjk') && st.pe >= NOW - 0.01));
 console.log('  kupa sayıları   :', COMPETITIONS.map((c, i) => `${c[0]}:${P.filter((p) => p.cups.has(i) && p.sl >= KNOWN_SL).length}`).join(' '));
 console.log('  joker sayıları  :', WILDCARDS.map((w, i) => `${w[0]}:${P.filter((p) => p.wild.has(i) && p.sl >= KNOWN_SL).length}`).join(' '));
-console.log('  Türk hocalar    :', ['Fatih Terim', 'Şenol Güneş', 'Mustafa Denizli', 'Okan Buruk', 'Sergen Yalçın', 'Aykut Kocaman', 'İsmail Kartal', 'Abdullah Avcı', 'Ersun Yanal'].map((n) => { const m = managers.find((x) => fold(x.name) === fold(n)); return m ? `${m.name}${m.tier === 'k' ? '' : '°'} ${m.known}` : n + ' yok'; }).join(' · '));
+
 show('Crespo/Agüero WC?', (p) => ['Hernán Crespo', 'Sergio Agüero', 'Gonzalo Higuaín'].includes(p.name) && p.cups.has(cupI('wc')));
 const lgI = (k) => LEAGUES.findIndex((l) => l[0] === k);
 show('PL öncesi Liverpool (boş olmalı)', (p) => ['Kenny Dalglish', 'Kevin Keegan', 'Graeme Souness', 'Alan Hansen'].includes(p.name) && p.leagues.has(lgI('eng')));
@@ -691,4 +908,4 @@ const famousDrops = wpDropped.filter(([p]) => p.sl >= 30).sort((a, b) => b[0].sl
 console.log(`  bilgi kutusuna göre silinen katalog kulübü: ${wpDropped.length} (sitelink ≥30: ${famousDrops.length})`);
 console.log('    ' + famousDrops.slice(0, 30).map(([p, c]) => `${p.name} → ${base.clubs[c].name}`).join(' · '));
 show('Arda Güler × Mourinho?', (p) => p.name === 'Arda Güler' && p.mgrs.has(mgrI('Mourinho')));
-console.log('  menajerler (tanınmış oyuncu):', managers.slice(0, 30).map((m) => `${m.name}${m.tier === 'k' ? '' : '°'} ${m.known}`).join(' · '));
+console.log('  menajerler (tanınmış oyuncu):', managers.map((m) => `${m.name} ${m.known}`).join(' · '));

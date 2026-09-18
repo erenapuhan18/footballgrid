@@ -99,5 +99,138 @@ for (const [sur, by] of DUP) {
     fail++;
   }
 }
+/* Kriter listeleri elle seçildi (kullanıcı istedi) — veri derlemesi bunları düşürmesin */
+const eq = (label, got, want) => {
+  if (got.join('|') === want.join('|')) return pass++;
+  console.log(`✗ ${label}: ${got.join(', ') || '—'}\n   beklenen: ${want.join(', ')}`);
+  fail++;
+};
+eq('hocalar', db.managers.map((m) => m.name), [
+  'Pep Guardiola', 'José Mourinho', 'Carlo Ancelotti', 'Alex Ferguson', 'Arsène Wenger', 'Fatih Terim', 'Louis van Gaal',
+  'Rafa Benítez', 'Jürgen Klopp', 'Roberto Mancini', 'Antonio Conte', 'Unai Emery', 'Brendan Rodgers',
+]);
+eq('kupalar', db.cups.map((c) => c.key), ['ballon', 'ucl', 'uel', 'uecl', 'ger', 'ita', 'esp', 'eng', 'tr1', 'copa', 'euro', 'wc']);
+
+/* Kulüp başlıkları: 206 cevap eşiği + elle çıkarılanlar, Süper Lig'in dördü muaf (server/db.js) */
+const CLUB_MIN = 206;
+const CLUB_KEEP = ['gs', 'fb', 'bjk', 'ts'];
+const CLUB_DROP = ['whu', 'fla', 'samp', 'rcde', 'tor', 'val', 'sep', 'spfc', 'sccp', 'lee', 'udi',
+  'prm', 'vfb', 'boca', 'dep', 'hsv', 'asse', 'ogcn', 'fcgb', 'czv', 'svw', 'sou'];
+const clubAnswers = (i) => db.players.filter((p) => p[2] >= 15 && p[3].includes(i)).length;
+const heads = [];
+for (const [i, c] of db.clubs.entries()) {
+  const n = clubAnswers(i);
+  const isHead = CLUB_KEEP.includes(c.key) || (!CLUB_DROP.includes(c.key) && n >= CLUB_MIN);
+  if (isHead) heads.push(c.key);
+  else if (CLUB_KEEP.includes(c.key)) {
+    console.log(`✗ ${c.name} muaf olmasına rağmen başlık değil`);
+    fail++;
+  }
+}
+eq('kulüp başlığı sayısı', [String(heads.length)], ['53']);
+for (const k of CLUB_KEEP) {
+  if (heads.includes(k)) pass++;
+  else {
+    console.log(`✗ ${k} başlık listesinde yok (muaf olmalı)`);
+    fail++;
+  }
+}
+for (const k of CLUB_DROP) {
+  if (!heads.includes(k)) pass++;
+  else {
+    console.log(`✗ ${k} çıkarılmış olmalıydı`);
+    fail++;
+  }
+}
+eq('özel şartlar', db.wilds.map((w) => w.key), [
+  'uclfinal', 'uclfinalgoal', 'wcfinal', 'wcfinalgoal', 'uclwc', 'treble', 'big3', 'big4', 'ucl3',
+  'lt3esp', 'lt3eng', 'lt3ita', 'lt3ger', 'lt3tr1',
+]);
+
+// Her başlıkta oyun kurabilecek kadar tanınmış cevap olmalı (ızgara üreticinin eşiği 8)
+for (const [label, list, col] of [['kupa', db.cups, 9], ['hoca', db.managers, 10], ['özel', db.wilds, 11]]) {
+  for (const [i, item] of list.entries()) {
+    const n = db.players.filter((p) => p[2] >= 15 && (p[col] || []).includes(i)).length;
+    if (n >= 8) pass++;
+    else {
+      console.log(`✗ ${label} "${item.name}": tanınmış cevap ${n} (en az 8 gerekli)`);
+      fail++;
+    }
+  }
+}
+
+// Bilinen başarılar doğru başlıkta mı?
+const has = (name, list, key, by = null) => {
+  const p = find(name, by);
+  // hocalar QID ile duruyor, listede ada göre aranır
+  const i = list === 'managers' ? db.managers.findIndex((x) => x.name.includes(key)) : db[list].findIndex((x) => x.key === key);
+  const col = { cups: 9, managers: 10, wilds: 11 }[list];
+  if (p && i >= 0 && (p[col] || []).includes(i)) return pass++;
+  console.log(`✗ ${name} → ${list}:${key} yok`);
+  fail++;
+};
+const wonAll = (list, key, names) => names.forEach((n) => (Array.isArray(n) ? has(n[0], list, key, n[1]) : has(n, list, key)));
+
+/* Bilinen kupa/hoca/şart eşleşmeleri — veri turlarında kaybolmasın.
+   Milli takım kupaları turnuvanın "… squads" maddesinden geliyor (Wikidata'nın P1344 kaydı Copa América'da
+   neredeyse boş: Roberto Carlos 1997/99 kazandı, kaydı yoktu). Hoca dönemleri kulüplerin P286'sı + hocanın
+   kendi bilgi kutusu (Benítez'in Liverpool'u, Terim'in milli takımı Wikidata'da yok). */
+wonAll('cups', 'copa', ['Roberto Carlos', ['Ronaldo', 1976], 'Rivaldo', 'Cafu', 'Ronaldinho', 'Dani Alves', 'Lionel Messi',
+  'Ángel Di María', 'Luis Suárez', 'Diego Forlán', 'Arturo Vidal', 'Alexis Sánchez']);
+wonAll('cups', 'wc', ['Gianluigi Buffon', 'Andrea Pirlo', 'Fabio Cannavaro', 'Iker Casillas', 'Andrés Iniesta', 'Xavi',
+  'David Villa', 'Zinedine Zidane', 'Thierry Henry', 'Kylian Mbappé', 'Manuel Neuer', 'Thomas Müller', 'Philipp Lahm', 'Kaká']);
+wonAll('cups', 'euro', ['Iker Casillas', 'Andrés Iniesta', 'Xavi', 'David Villa', 'Zinedine Zidane', 'Thierry Henry',
+  'Cristiano Ronaldo', 'Pepe', 'Giorgio Chiellini', 'Leonardo Bonucci']);
+wonAll('cups', 'ucl', ['Steven Gerrard', 'Andriy Şevçenko', "Samuel Eto'o", 'Wesley Sneijder', 'Didier Drogba', 'Gareth Bale', 'Luka Modrić']);
+wonAll('cups', 'tr1', ['Rüştü Reçber', 'Gheorghe Hagi', 'Alex de Souza', 'Mario Gómez', 'Vincent Aboubakar']);
+wonAll('cups', 'uel', ['Henrih Mhitaryan', 'Radamel Falcao', 'Antoine Griezmann']);
+wonAll('cups', 'uecl', ['Declan Rice', 'Cole Palmer']);
+wonAll('cups', 'ita', ['Francesco Totti', 'Paolo Maldini', 'Roberto Baggio']);
+wonAll('cups', 'esp', ['Xabi Alonso', 'Raúl González']);
+wonAll('cups', 'eng', ['Frank Lampard', 'Ryan Giggs', 'Sergio Agüero']);
+wonAll('cups', 'ger', ['Franck Ribéry', 'Arjen Robben']);
+
+for (const [name, mgr] of [['Lionel Messi', 'Guardiola'], ['Cristiano Ronaldo', 'Ferguson'], ['Mesut Özil', 'Mourinho'],
+  ['Cesc Fàbregas', 'Wenger'], ['Hakan Şükür', 'Terim'], ['Rüştü Reçber', 'Terim'], ['Arda Turan', 'Terim'],
+  ['Emre Belözoğlu', 'Terim'], ['Arda Güler', 'Ancelotti'], ['Mohamed Salah', 'Klopp'], ['Romelu Lukaku', 'Conte'],
+  ['Wesley Sneijder', 'Mourinho'], ['Robin van Persie', 'Wenger'], ['Mario Balotelli', 'Mancini'],
+  ['Xabi Alonso', 'Benítez'], ['Steven Gerrard', 'Benítez'], ['Fernando Torres', 'Benítez'],
+  ['Raheem Sterling', 'Rodgers'], ['Luis Suárez', 'Rodgers']]) has(name, 'managers', mgr);
+
+/* "X ile oynadı": aynı kulüp **ya da A milli takımı**, aynı dönemde (kullanıcı milli takımın da sayılmasını
+   istedi). Alt yaş milli takımları ve kulüp B takımları sayılmaz; milli takım dönemi bitişi bilinmiyorsa
+   kulüp kariyerinin sonuyla kapatılır (eskiden "2,5 yıl sürdü" sayılıp çakışmaları kaçırıyordu). */
+const mate = (star, player, want) => {
+  const i = db.mates.findIndex((m) => m.name === star);
+  const p = find(player);
+  const got = !!(p && i >= 0 && (p[13] || []).includes(i));
+  if (got === want) return pass++;
+  console.log(`✗ ${star} × ${player}: ${got ? 'kabul' : 'red'} (beklenen ${want ? 'kabul' : 'red'})`);
+  fail++;
+};
+for (const [a, b] of [['Hakan Şükür', 'Rüştü Reçber'], ['Hakan Şükür', 'Alpay Özalan'], ['Gheorghe Hagi', 'Cristian Chivu'],
+  ['Didier Drogba', 'Yaya Touré'], ['Ronaldinho', 'Roberto Carlos'], ['Arda Turan', 'Volkan Demirel'],
+  ['Arda Güler', 'Hakan Çalhanoğlu'], ['Arda Güler', 'Kerem Aktürkoğlu'], ['Burak Yılmaz', 'Rüştü Reçber'],
+  ['Mesut Özil', 'Manuel Neuer'], ['Cristiano Ronaldo', 'Pepe'], ['Lionel Messi', 'Ángel Di María'],
+  ['Edin Džeko', 'Miralem Pjanić'], ['Victor Osimhen', 'Wilfred Ndidi']]) mate(a, b, true);
+for (const [a, b] of [['Hakan Şükür', 'Lionel Messi'], ['Arda Turan', 'Manuel Neuer'], ['Ronaldinho', 'Wayne Rooney'],
+  ['Arda Güler', 'Erling Haaland'], ['Hakan Şükür', 'Zinedine Zidane'], ['Lamine Yamal', 'Rüştü Reçber'],
+  ['Arda Güler', 'Hakan Şükür']]) mate(a, b, false);
+
+for (const [name, w] of [['Zinedine Zidane', 'uclfinalgoal'], ['Steven Gerrard', 'uclfinalgoal'],
+  ['Andrés Iniesta', 'wcfinalgoal'], ['Mario Götze', 'wcfinalgoal'], ['Xavi', 'uclwc'], ['Arjen Robben', 'wcfinal'],
+  ['Zlatan Ibrahimović', 'big3'], ['Ricardo Quaresma', 'big3'], ['Arjen Robben', 'treble'],
+  ['Andrés Iniesta', 'lt3esp'], ['Ryan Giggs', 'lt3eng'], ['Hakan Şükür', 'lt3tr1'], ['Paolo Maldini', 'ucl3']]) has(name, 'wilds', w);
+has('Lionel Messi', 'cups', 'ballon');
+has('Lionel Messi', 'wilds', 'wcfinalgoal');
+has('Lionel Messi', 'wilds', 'uclfinalgoal');
+has('Zinedine Zidane', 'wilds', 'uclwc');
+has('Andrés Iniesta', 'wilds', 'uclwc');
+has('Henrih Mhitaryan', 'cups', 'uecl');
+has('Dani Alves', 'cups', 'copa');
+has('Gianluigi Buffon', 'wilds', 'wcfinal');
+has('Arjen Robben', 'wilds', 'wcfinal');
+has('Mesut Özil', 'managers', 'Mourinho');
+
 console.log(`\n${pass} ✓ · ${fail} ✗`);
 process.exitCode = Math.min(fail, 100);

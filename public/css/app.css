@@ -229,6 +229,46 @@ button { cursor: pointer; }
 .group { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 8px; }
 .chips.k-mode, .chips.k-win { grid-template-columns: 1fr; }
+/* Kriter satırı: solda tür aç/kapa, sağda "SEÇ" (türün içindeki başlıklar tek tek) */
+.cat-list { display: flex; flex-direction: column; gap: 6px; }
+.cat-row { display: flex; align-items: center; gap: 8px; }
+.cat-tog {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 7px 11px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); box-shadow: 2px 2px 0 var(--ink);
+}
+.cat-tog:has(input:not(:checked)) { border-style: dashed; box-shadow: none; opacity: 0.72; }
+.cat-tog input, .cat-always {
+  flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--ink);
+  display: grid; place-items: center; font-weight: 900; color: var(--ink-2);
+}
+.cat-tog:focus-within { outline: 3px solid var(--blue); outline-offset: 2px; }
+.cat-name { min-width: 0; display: flex; flex-direction: column; }
+.cat-name b { font-weight: 800; }
+.cat-name small { font-weight: 550; font-size: 12.5px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-row > .btn { flex: none; min-height: 40px; padding: 6px 12px; }
+
+/* Kriter seçici (modal içi liste) */
+.pick-wrap { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.pick-bulk { display: flex; gap: 8px; }
+.pick-bulk .btn { flex: 1; }
+.pick-list { display: flex; flex-direction: column; gap: 4px; max-height: 46dvh; overflow: auto; padding-right: 2px; }
+.pick { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; cursor: pointer; }
+.pick:hover { background: rgba(20, 32, 58, 0.06); }
+.pick input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--ink); }
+.pick-body { min-width: 0; display: flex; flex-direction: column; }
+.pick-body b { font-weight: 750; font-size: 15px; }
+.pick-body small { font-weight: 550; font-size: 12px; color: var(--ink-2); }
+.pick input:not(:checked) + .pick-body { opacity: 0.5; text-decoration: line-through; }
+.pick-wrap .hint.warn { color: var(--red); font-weight: 750; }
+
+/* Izgara kriterleri: form uzamasın diye katlanmış durur; tek tek açılıp kapanan kutular */
+.cat-group > summary { cursor: pointer; padding: 2px 0; }
+.cat-group > summary::marker { color: var(--ink-2); }
+.cat-group[open] > summary { margin-bottom: 2px; }
+/* Izgara kriterleri: tek tek açılıp kapanan kutular, dar ekranda tek sütuna iner */
+.chips.k-cats { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.chips.k-cats .chip-body { align-items: flex-start; min-height: 46px; padding: 7px 11px; }
+.chips.k-cats .chip input:not(:checked) + .chip-body { border-style: dashed; opacity: 0.72; }
 .group[hidden] { display: none; }
 .chip { position: relative; display: block; }
 .chip input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }

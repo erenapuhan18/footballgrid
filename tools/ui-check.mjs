@@ -134,9 +134,67 @@ try {
   const create = await A.ev(`return text();`);
   check(['2 Kişi', '3 Kişi', '4 Kişi', 'Klasik', 'Hızlı', 'Uzman', '15 sn', '30 sn', '45 sn', '60 sn', 'ODAYI OLUŞTUR'].every((x) => create.includes(x)), 'oda oluştur: tüm seçenekler');
   await A.ev(`$$('.chip').find((c) => c.textContent === '4 Kişi').querySelector('input').click();`);
+  // ızgara kriterleri: türler kategori kategori görünür, hepsi açık gelir, kapatılan özete yazılır
+  const cats = await A.ev(`
+    $('.cat-group').open = true;
+    const box = $('.cat-list');
+    const on = $$('.cat-list input').filter((i) => i.checked).length;
+    const labels = $$('.cat-list .cat-name b').map((b) => b.textContent);
+    return { on, all: $$('.cat-list input').length, labels, note: box.parentElement.querySelector('.hint').textContent, sum: $('.cat-group summary').textContent };`);
+  check(cats.all === 8 && cats.on === 8, 'kriterler: 8 tür, hepsi açık gelir (+ kulüp satırı)', `${cats.on}/${cats.all}`);
+  check(['Kulüp', 'Ülke', 'Lig', 'Kupa', 'Teknik direktör', 'Takım arkadaşı', 'Özel şart', 'Boy', 'Mevki'].every((x) => cats.labels.includes(x)),
+    'kriterler: kategori adları', cats.labels.join(', '));
+  check(/Kulüp başlıkları her zaman var/.test(cats.note), 'kriterler: kulüp açıklaması', cats.note);
+  check(cats.sum === 'Izgara kriterleri · 8/8 tür', 'kriterler: katlanmış başlık sayıyı gösterir', cats.sum);
+  const catEx = await A.ev(`return $$('.cat-list .cat-name small').map((s) => s.textContent);`);
+  check(catEx.every((t) => /\d+ başlık · /.test(t)), 'kriterler: her türde sayı ve örnek', catEx[0]);
+  const catOff = await A.ev(`
+    $$('.cat-list input').find((i) => i.value === 'mgr').click();
+    $$('.cat-list input').find((i) => i.value === 'mate').click();
+    return { sum: $('.cat-group summary').textContent, on: $$('.cat-list input').filter((i) => i.checked).length };`);
+  check(catOff.on === 6 && /6\/8 tür/.test(catOff.sum), 'kriterler: tür kapatınca sayı düşer', catOff.sum);
+
+  // türün içine gir: başlıkları tek tek kapat
+  const cupPick = await A.ev(`
+    $$('.cat-row').find((r) => r.textContent.startsWith('Kupa')).querySelector('button').click();
+    await wait('.pick-list .pick');
+    return { title: $('.modal-head h3').textContent, n: $$('.pick').length, first: $$('.pick .pick-body b')[0].textContent,
+             sub: $$('.pick .pick-body small')[0].textContent, count: $('.pick-wrap .hint + * + * ~ .hint, .pick-wrap .hint:nth-of-type(2)')?.textContent || '' };`);
+  check(cupPick.title === 'KUPA' && cupPick.n === 12, 'kriter seçici: kupa listesi açıldı', `${cupPick.title} · ${cupPick.n} başlık · ${cupPick.first} (${cupPick.sub})`);
+  await A.shot('02c-cat-picker.png'); // seçici açıkken
+  const picked = await A.ev(`
+    const rows = $$('.pick');
+    const byName = (n) => rows.find((r) => r.textContent.startsWith(n));
+    byName('Copa América').querySelector('input').click();
+    byName('Konferans Ligi').querySelector('input').click();
+    const off = rows.filter((r) => !r.querySelector('input').checked).map((r) => r.querySelector('b').textContent);
+    const txt = $$('.pick-wrap .hint').map((p) => p.textContent).join(' | ');
+    btn('TAMAM').click(); await wait(() => !$('.modal'));
+    return { off, txt, row: $$('.cat-row').find((r) => r.textContent.startsWith('Kupa')).textContent, sum: $('.cat-group summary').textContent };`);
+  check(picked.off.join() === 'Konferans Ligi,Copa América' || picked.off.join() === 'Copa América,Konferans Ligi',
+    'kriter seçici: seçilen başlıklar kapandı', picked.off.join(', '));
+  check(/10\/12 başlık açık/.test(picked.row), 'kriter seçici: satır sayıyı gösteriyor', picked.row.replace(/\s+/g, ' ').trim());
+  check(/2 başlık kapalı/.test(picked.sum), 'kriter seçici: özet sayıyı gösteriyor', picked.sum);
+  // uzun listede arama: 104 kulüp
+  const clubPick = await A.ev(`
+    $$('.cat-row').find((r) => r.textContent.includes('Kulüp')).querySelector('button').click(); // kulüp satırı ✓ ile başlıyor
+    await wait('.pick-list .pick');
+    const all = $$('.pick').length;
+    type($('.modal input[type=search]'), 'besik');
+    await wait(() => $$('.pick').length < all);
+    return { all, found: $$('.pick .pick-body b').map((b) => b.textContent) };`);
+  check(clubPick.all === 53 && clubPick.found.join() === 'Beşiktaş', 'kriter seçici: aramada Türkçe katlanıyor ("besik" → Beşiktaş)', `${clubPick.all} kulüp → ${clubPick.found.join(', ')}`);
+  await A.shot('02d-cat-search.png');
+  await A.ev(`btn('TAMAM').click(); await wait(() => !$('.modal'));`);
   await noOverflow(A, 'oda oluştur');
+  await A.ev(`$('.cat-group').open = false; scrollTo(0, 0);`);
   await A.shot('02-create.png');
+  await A.ev(`$('.cat-group').open = true; $('.cat-group').scrollIntoView({ block: 'center' });`);
+  await A.shot('02b-create-cats.png');
+  await A.ev(`scrollTo(0, 0);`);
   const code = await A.ev(`btn('ODAYI OLUŞTUR').click(); return (await wait('.lobby .tk-code')).textContent;`);
+  const sum = await A.ev(`return $('.lobby .settings').textContent;`);
+  check(/Kapalı: teknik direktör, takım arkadaşı/.test(sum), 'lobi özeti: kapalı kriterleri yazar', sum);
   check(/^[A-HJ-NP-Z2-9]{5}$/.test(code), 'oda kodu 5 karakter', code);
   check((await A.ev(`return location.pathname;`)) === `/oda/${code}`, 'adres çubuğu /oda/KOD');
 
@@ -166,6 +224,20 @@ try {
   const guest = await B.ev(`await wait(() => $$('.pl:not(.empty)').length === 3); return text();`);
   check(guest.includes("Host'un maçı başlatması bekleniyor") && !guest.includes('MAÇI BAŞLAT'), 'lobi (misafir): bekleme yazısı, başlat düğmesi yok');
   await B.shot('06-lobby-guest.png');
+
+  // lobide host ayarları düzenler: kriter paneli modalda da çalışır ve kaydedilir
+  const catSave = await A.ev(`
+    btn('AYARLAR').click(); await wait('.modal .cat-list');
+    $('.modal .cat-group').open = true;
+    $$('.modal .cat-list input').find((i) => i.value === 'mgr').click();
+    return { sum: $('.modal .cat-group summary').textContent, off: $$('.modal .cat-list input').filter((i) => !i.checked).map((i) => i.value) };`);
+  check(/^Izgara kriterleri · 7\/8 tür/.test(catSave.sum) && catSave.off.join() === 'mate', 'lobi ayarları: kriter paneli açılıyor', catSave.sum);
+  await A.shot('05b-lobby-settings.png');
+  const saved = await A.ev(`
+    btn('KAYDET').click(); await wait(() => !$('.modal'));
+    await wait(() => !/teknik direktör/.test($('.lobby .settings').textContent));
+    return $('.lobby .settings').textContent;`);
+  check(/Kapalı: takım arkadaşı/.test(saved) && !/teknik direktör/.test(saved), 'lobi ayarları: kriter değişikliği kaydedildi', saved);
 
   const qr = await A.ev(`btn('QR KOD').click(); await wait('.qr path'); return $('.qr-box .mono').textContent;`);
   check(qr.endsWith(`/oda/${code}`), 'QR: davet linkinin QR kodu', qr);
@@ -252,16 +324,26 @@ try {
   const H = await newPage('/');
   await H.ev(`type($('#nick'), 'Hızlıcı'); btn('ODA OLUŞTUR').click(); await wait('.k-style');
     $$('.chip').find((c) => c.textContent.startsWith('Aynı anda')).querySelector('input').click();
-    $$('.chip').find((c) => c.textContent.startsWith('Tekrar olur')).querySelector('input').click();`);
+    $$('.chip').find((c) => c.textContent.startsWith('Tekrar olur')).querySelector('input').click();
+    $('.cat-group').open = true;
+    for (const i of $$('.cat-list input')) if (i.value !== 'ht' && i.checked) i.click();`); // yalnız Boy açık kalsın
   const formTxt = await H.ev(`return text();`);
   check(['Oyun tarzı', 'Maç süresi', 'İpucu', 'Aynı futbolcu', 'Tekrar olur'].every((x) => formTxt.includes(x)), 'oda oluştur: tarz, maç süresi, ipucu, aynı futbolcu seçenekleri');
   await H.shot('17-create-race.png');
+  const htOnly = await H.ev(`return $('.cat-group summary').textContent;`);
+  check(htOnly === 'Izgara kriterleri · 1/8 tür', 'kriterler: yalnız Boy açık bırakılabiliyor', htOnly);
   const rc = await H.ev(`btn('ODAYI OLUŞTUR').click(); return (await wait('.lobby .tk-code')).textContent;`);
   const G2 = await newPage('/oda/' + rc);
   await G2.ev(`await wait('.ticket'); type($('#nick-inv'), 'Rakip'); btn('ODAYA KATIL').click(); await wait('.lobby');`);
   const lobbyTxt = await H.ev(`await wait(() => $$('.pl:not(.empty)').length === 2); return $('.settings').textContent;`);
   check(/Aynı anda · 3 dk/.test(lobbyTxt) && /tekrar olur/.test(lobbyTxt), 'lobi: ayar özeti', lobbyTxt);
   await H.ev(`btn('MAÇI BAŞLAT').click(); await wait('.screen.game', 7000);`);
+  const htHead = await H.ev(`
+    const tiles = $$('.hcat').map((t) => ({ type: [...t.classList].find((c) => c.startsWith('t-')), txt: t.textContent, ruler: !!t.querySelector('.ruler text') }));
+    return { ht: tiles.filter((t) => t.type === 't-ht'), types: [...new Set(tiles.map((t) => t.type))] };`);
+  check(htHead.ht.length > 0, 'boy başlığı ızgaraya geldi', htHead.ht.map((t) => t.txt).join(' | '));
+  check(htHead.ht.every((t) => t.ruler && / m ve (üstü|altı)boyunda/.test(t.txt)), 'boy başlığı: ölçü şeridi simgesi + "… boyunda"', htHead.ht[0]?.txt);
+  check(htHead.types.every((t) => t === 't-club' || t === 't-ht'), 'yalnız Boy açıkken başka tür gelmedi', htHead.types.join(' '));
   const raceInfo = await H.ev(`return { t: $('.gturn').textContent, b: $('.btxt').textContent, m: $('.gmode').textContent };`);
   // Aynı anda modunda hamle sayacı yok (sıra yok); mod bilgisi üst şeritteki etikette
   check(raceInfo.t === '' && /Aynı anda/.test(raceInfo.b) && /Aynı anda/.test(raceInfo.m), 'aynı anda modu: sıra yok, herkes oynar', JSON.stringify(raceInfo));
@@ -269,7 +351,8 @@ try {
   const free = rroom.game.cells.findIndex((c) => !c.owner);
   await H.ev(`$$('.grid .cell')[${free}].click(); await wait('.answer:not([hidden])'); $('.hint-btn').click(); await wait('.hintbox:not([hidden])');`);
   const hintTxt = await H.ev(`return $('.hintbox').textContent;`);
-  check(/💡 .+ bir cevap:/.test(hintTxt), 'ipucu gösterildi', hintTxt);
+  check(/💡 .+ bir cevap: [^·]*[A-ZÇĞİÖŞÜ]\./.test(hintTxt), 'ipucu: baş harfler yazıyor', hintTxt);
+  check(!/\d+ harf|harfli/.test(hintTxt), 'ipucu: harf sayısı yazmıyor', hintTxt);
   await H.shot('18-race-hint.png');
   const [rr, cc] = rroom.game.catsOf(free);
   const ans = app.db.answers(rr, cc, 1)[0];
@@ -279,6 +362,7 @@ try {
   await H.ev(`await wait('.results:not([hidden])'); $$('.grid .cell')[${free}].click(); await wait('.pcard');`);
   const cardTxt = await H.ev(`return $('.pcard').textContent;`);
   check(cardTxt.includes('KULÜPLERİ'), 'oyuncu kartı açıldı', ans.name);
+  check(!ans.ht || new RegExp(`${(ans.ht / 100).toFixed(2).replace('.', ',')} m`).test(cardTxt), 'oyuncu kartında boy yazıyor', `${ans.name} ${ans.ht} cm`);
   await H.shot('19-player-card.png');
 
   /* 12) masaüstü */

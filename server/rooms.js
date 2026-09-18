@@ -8,7 +8,7 @@ import { randomBytes } from 'node:crypto';
 import { makeCode, normalizeCode } from './codes.js';
 import { validateNick, sameNick, suggestNick } from './nickname.js';
 import { Game, gameShape } from './game.js';
-import { makeGrid } from './grid.js';
+import { makeGrid, CAT_TYPES, normCats, normOff } from './grid.js';
 import { playBotTurn, runRaceBot, pickBotName, BOT_LEVELS, DEFAULT_LEVEL } from './bots.js';
 
 export const COLORS = ['blue', 'red', 'green', 'yellow'];
@@ -20,16 +20,20 @@ export const SETTINGS = {
   style: ['turn', 'race'],
   matchTime: [60, 120, 180, 300],
   rounds: [1, 3, 5], // turnuva: kaç maçlık seri
+  cats: CAT_TYPES, // ızgarada hangi başlık türleri çıkabilir (kulüp her zaman var)
 };
 /** Hızlı maç: sırayla, 3 kişide 3'leme, 4 kişide en çok hücre, ipucu açık, aynı futbolcu bir kez. */
 export const quickSettings = (size) => ({
   capacity: size, mode: 'klasik', turnTime: 30, win: size === 4 ? 'most' : 'line3', style: 'turn', matchTime: 180, hints: true, reuse: false,
+  cats: [...CAT_TYPES],
+  off: [],
 });
 
 const LOBBY_GRACE_MS = 45_000; // lobide bağlantısı kopan oyuncu bu süre sonunda odadan çıkar
 const GAME_GRACE_MS = 90_000; // maç sırasında
 const HOST_GRACE_MS = 15_000; // host bu kadar çevrimdışı kalırsa yetki devredilir
 const COUNTDOWN_MS = 3_000;
+const RECENT_GRIDS = 3; // kaç maç geriye kadar aynı başlıklardan kaçınılır
 const TOMBSTONE_MS = 2 * 3600e3;
 const IDLE_ROOM_MS = 3 * 3600e3;
 
@@ -41,7 +45,7 @@ export class RoomError extends Error {
   }
 }
 
-function normSettings(s = {}) {
+function normSettings(s = {}, db = null) {
   const num = (v, allowed, def) => (allowed.includes(Number(v)) ? Number(v) : def);
   const capacity = num(s.capacity, SETTINGS.capacity, 2);
   return {
@@ -55,6 +59,8 @@ function normSettings(s = {}) {
     matchTime: num(s.matchTime, SETTINGS.matchTime, 180),
     hints: s.hints === undefined ? true : s.hints === true || s.hints === 'true',
     reuse: s.reuse === true || s.reuse === 'true',
+    cats: normCats(s.cats),
+    off: normOff(s.off, db?.catByKey), // tek tek kapatılmış başlıklar ("mgr:Q310623", "cup:uecl"…)
   };
 }
 
@@ -71,7 +77,7 @@ class Room {
     this.round = 0;
     this.series = { total: settings.rounds || 1, played: 0, wins: {} }; // turnuva: maç sayısı ve kim kaç maç kazandı
     this.watchers = new Set(); // izleyiciler: oda anlık görüntüsünü alırlar, oynayamazlar
-    this.lastGrid = new Set();
+    this.recentGrids = []; // son maçların başlık anahtarları (yenisi başta) — aynı başlıklar üst üste gelmesin
     this.startsAt = null;
     this.countdownTimer = null;
     this.botCancel = null;
@@ -81,6 +87,11 @@ class Room {
 
   touch() {
     this.touchedAt = Date.now();
+  }
+
+  /** Son maçlarda çıkmış başlıklar — ızgara üretici bunları geri plana atar. */
+  avoidCats() {
+    return new Set(this.recentGrids.flat());
   }
 
   humans() {
@@ -249,7 +260,7 @@ export class RoomManager {
   create(session, opts = {}) {
     const v = validateNick(opts.nick);
     if (!v.ok) throw new RoomError('invalid_nick', v.error);
-    const settings = normSettings(opts);
+    const settings = normSettings(opts, this.db);
     this.detach(session);
     const code = makeCode((c) => this.rooms.has(c) || this.closed.has(c));
     const room = new Room(this, code, settings, false);
@@ -423,7 +434,7 @@ export class RoomManager {
   updateSettings(session, patch = {}) {
     const room = this.requireHost(session);
     if (room.status !== 'lobby' && room.status !== 'finished') throw new RoomError('bad_state', 'Ayarlar maç sürerken değiştirilemez.');
-    const next = normSettings({ ...room.settings, ...patch });
+    const next = normSettings({ ...room.settings, ...patch }, this.db);
     if (next.capacity < room.members.length) {
       throw new RoomError('bad_capacity', `Odada ${room.members.length} oyuncu var; kapasite bundan az olamaz.`);
     }
@@ -468,7 +479,7 @@ export class RoomManager {
     let grid = null;
     for (const mode of [room.settings.mode, 'klasik', 'uzman']) {
       try {
-        grid = makeGrid(this.db, mode, size, { avoid: room.lastGrid });
+        grid = makeGrid(this.db, mode, size, { avoid: room.avoidCats(), cats: room.settings.cats, off: room.settings.off });
         break;
       } catch {
         /* sıradaki modu dene */
@@ -477,10 +488,17 @@ export class RoomManager {
     if (!grid) {
       room.status = room.round ? 'finished' : 'lobby';
       room.startsAt = null;
-      this.event(room, { kind: 'error', message: 'Bu oyuncu sayısı için ızgara üretilemedi, tekrar dene.' });
+      const narrowed = room.settings.off.length || room.settings.cats.length < CAT_TYPES.length;
+      this.event(room, {
+        kind: 'error',
+        message: narrowed
+          ? 'Açık kriterler bu ızgarayı kurmaya yetmedi — ayarlardan biraz kriter geri aç.'
+          : 'Bu oyuncu sayısı için ızgara üretilemedi, tekrar dene.',
+      });
       return room.broadcast();
     }
-    room.lastGrid = new Set([...grid.rows, ...grid.cols].map((c) => c.key));
+    room.recentGrids.unshift([...grid.rows, ...grid.cols].map((c) => c.key));
+    room.recentGrids.length = Math.min(room.recentGrids.length, RECENT_GRIDS);
     const st = room.settings;
     const game = new Game({
       db: this.db, mode: st.mode, turnTime: st.turnTime, win: st.win, style: st.style, matchTime: st.matchTime,

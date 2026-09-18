@@ -18,7 +18,7 @@ function mulberry32(seed) {
 export const FIRST = ['Ali', 'Arda', 'Burak', 'Can', 'Emre', 'Hakan', 'Kerem', 'Mert', 'Onur', 'Selçuk', 'Tolga', 'Umut', 'Volkan', 'Yusuf', 'Zeki', 'Diego', 'Marco', 'Luis', 'Pierre', 'Hans'];
 export const LAST = ['Yılmaz', 'Kaya', 'Demir', 'Şahin', 'Çelik', 'Öztürk', 'Aydın', 'Arslan', 'Doğan', 'Kılıç', 'Rossi', 'Silva', 'Müller', 'Dubois', 'García', 'Smith', 'Novak', 'Ivanov', 'Costa', 'Jensen'];
 
-/** 8 kulüp, 5 ülke, 2 lig, 4 mevki; ~900 futbolcu, her biri 3 kulüpte oynamış. */
+/** 8 kulüp, 5 ülke, 2 lig, 4 mevki, boy; ~900 futbolcu, her biri 3 kulüpte oynamış. */
 export function makeFixtureDb(seed = 7) {
   const rng = mulberry32(seed);
   const clubs = [
@@ -33,6 +33,7 @@ export function makeFixtureDb(seed = 7) {
   const leagues = [{ key: 'l1', qid: 'QL1', name: 'Örnek Lig', short: 'ÖL' }, { key: 'l2', qid: 'QL2', name: 'Avrupa Ligi', short: 'AL' }];
   const positions = [['gk', 'Kaleci'], ['df', 'Defans'], ['mf', 'Orta saha'], ['fw', 'Forvet']].map(([key, name]) => ({ key, name }));
   const players = [];
+  const heights = {};
   const seen = new Set();
   for (let i = 0; players.length < 900; i++) {
     let name = `${FIRST[Math.floor(rng() * FIRST.length)]} ${LAST[Math.floor(rng() * LAST.length)]}`;
@@ -50,6 +51,7 @@ export function makeFixtureDb(seed = 7) {
     const mgrList = [0, 1].filter(() => rng() < 0.35);
     const wildList = [...(by >= 2000 ? [0] : []), ...(rng() < 0.15 ? [1] : [])];
     players.push([name, by, sl, cIdx, nat, lg, pos, [], 'QP' + i, cupList, mgrList, wildList]);
+    heights['QP' + i] = 163 + Math.floor(rng() * 38); // 163-200 cm (bir kısmı aşağıda boş bırakılır)
   }
   players.sort((a, b) => b[2] - a[2]);
   const cups = [
@@ -61,13 +63,16 @@ export function makeFixtureDb(seed = 7) {
     { key: 'y2000', name: '2000 sonrası doğumlu', desc: '2000 ya da sonrasında doğmuş', fail: '2000 öncesi doğmuş', tier: 'k' },
     { key: 'ballon', name: "Ballon d'Or", desc: "Ballon d'Or kazanmış", fail: "Ballon d'Or kazanmadı", tier: 'k' },
   ];
-  return { version: 1, builtAt: '2026-01-01T00:00:00Z', source: 'test', clubs, nations, leagues, positions, cups, managers, wilds, players };
+  for (const q of Object.keys(heights)) if (rng() < 0.12) delete heights[q]; // gerçek veride de %8 boy eksik
+  return { version: 1, builtAt: '2026-01-01T00:00:00Z', source: 'test', clubs, nations, leagues, positions, cups, managers, wilds, players, heights };
 }
 
 export function writeFixtureDb(seed) {
   const dir = mkdtempSync(join(tmpdir(), 'fg-test-'));
   const file = join(dir, 'db.json');
-  writeFileSync(file, JSON.stringify(makeFixtureDb(seed)));
+  const { heights, ...db } = makeFixtureDb(seed);
+  writeFileSync(file, JSON.stringify(db));
+  writeFileSync(join(dir, 'heights.json'), JSON.stringify(heights)); // db.js yan dosyadan okur
   return file;
 }
 

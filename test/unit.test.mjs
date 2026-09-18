@@ -4,7 +4,7 @@ import { validateNick, sameNick, suggestNick, isProfane } from '../server/nickna
 import { makeCode, normalizeCode, CODE_ALPHABET } from '../server/codes.js';
 import { fold, locative } from '../server/text.js';
 import { FootballDB } from '../server/db.js';
-import { makeGrid, MODES } from '../server/grid.js';
+import { makeGrid, MODES, trivial } from '../server/grid.js';
 import { Game, gameShape, linesFor } from '../server/game.js';
 import { writeFixtureDb, sleep } from './helpers.mjs';
 
@@ -156,7 +156,82 @@ test('ızgara: her modda çözülebilir, bariz hücre yok, tür dağılımı den
       }
     }
   }
-  for (const t of ['club', 'nat', 'cup', 'mgr', 'wild']) assert.ok(types.has(t), 'başlıklarda tür yok: ' + t);
+  for (const t of ['club', 'nat', 'cup', 'mgr', 'wild', 'ht']) assert.ok(types.has(t), 'başlıklarda tür yok: ' + t);
+});
+
+test('veritabanı: boy başlıkları eşiği tutar, boyu bilinmeyen cevap olmaz', () => {
+  const over = db.catByKey.get('ht:h190');
+  const under = db.catByKey.get('ht:h170');
+  assert.ok(over && under);
+  assert.deepEqual(db.headOf(over), ['1,90 m ve üstü', 'boyunda']);
+  assert.equal(db.headOf(under)[0], '1,70 m ve altı');
+  const tall = db.answers(over, over, 400);
+  assert.ok(tall.length > 10);
+  assert.ok(tall.every((p) => p.ht >= 190), 'eşiğin altında cevap');
+  assert.ok(db.answers(under, under, 400).every((p) => p.ht > 0 && p.ht <= 170));
+  // boyu bilinmeyen futbolcu hiçbir boy başlığına uymaz ve sebebi dürüst yazılır
+  const noHt = db.players.find((p) => !p.ht);
+  assert.ok(noHt, 'boyu eksik futbolcu yok (fixture)');
+  assert.ok(db.cats.filter((c) => c.type === 'ht').every((c) => !db.matches(noHt, c)));
+  assert.equal(db.failText(over, noHt), 'boyu verimizde yok');
+  assert.equal(db.failText(over, tall[0]), "1,90 m'den kısa");
+  assert.equal(db.card(tall[0].i).ht, tall[0].ht);
+  assert.equal(db.publicCat(over).cm, 190);
+  assert.equal(db.publicCat(over).over, true);
+});
+
+test('ızgara: bedava hücreler engellenir — özel şart kendi kupasıyla eşleşmez', () => {
+  const wild = (k) => ({ type: 'wild', wildKey: k, key: 'wild:' + k });
+  const cup = (k) => ({ type: 'cup', cupKey: k, key: 'cup:' + k });
+  const lg = (k) => ({ type: 'lg', lgKey: k, key: 'lg:' + k });
+  // "3+ ŞL kazandı × ŞL kazandı" ya da "ŞL finali oynadı × ŞL kazandı" bilgi sormaz
+  for (const [w, c] of [['ucl3', 'ucl'], ['uclfinal', 'ucl'], ['treble', 'ucl'], ['uclwc', 'ucl'], ['uclwc', 'wc'],
+    ['wcfinal', 'wc'], ['lt3esp', 'esp'], ['lt3eng', 'eng'], ['lt3ita', 'ita'], ['lt3ger', 'ger'], ['lt3tr1', 'tr1']]) {
+    assert.ok(trivial(wild(w), cup(c)), `${w} × ${c} bariz sayılmadı`);
+    assert.ok(trivial(cup(c), wild(w)), `${c} × ${w} (ters sıra) bariz sayılmadı`);
+  }
+  // finalde gol atmak kupayı getirmez; başka kupalarla da çakışma yok
+  for (const [w, c] of [['uclfinalgoal', 'ucl'], ['wcfinalgoal', 'wc'], ['ucl3', 'esp'], ['treble', 'wc'], ['big3', 'ucl']]) {
+    assert.ok(!trivial(wild(w), cup(c)), `${w} × ${c} boşuna bariz sayıldı`);
+  }
+  assert.ok(trivial(lg('eng'), cup('eng')) && !trivial(lg('eng'), cup('esp')));
+});
+
+test('ızgara: kapatılan kriter türleri çıkmaz, hepsi kapalıyken yalnız kulüp kalır', () => {
+  for (let k = 0; k < 20; k++) {
+    const only = makeGrid(db, 'klasik', 3, { cats: ['nat'] });
+    for (const c of [...only.rows, ...only.cols]) assert.ok(c.type === 'club' || c.type === 'nat', 'kapalı tür: ' + c.type);
+    const ht = makeGrid(db, 'klasik', 3, { cats: ['ht'] });
+    assert.ok([...ht.rows, ...ht.cols].some((c) => c.type === 'ht'), 'yalnız boy açıkken boy başlığı yok');
+    const bare = makeGrid(db, 'klasik', 3, { cats: [] });
+    for (const c of [...bare.rows, ...bare.cols]) assert.equal(c.type, 'club');
+  }
+});
+
+test('ızgara: tür içinde eşit şans — tek bir kulüp başlıkları kapatmaz', () => {
+  const freq = new Map();
+  const N = 240;
+  for (let i = 0; i < N; i++) for (const c of Object.values(makeGrid(db, 'klasik', 3)).flat()) {
+    if (c.type === 'club') freq.set(c.key, (freq.get(c.key) || 0) + 1);
+  }
+  const clubs = db.cats.filter((c) => c.type === 'club' && c.tier === 'k');
+  for (const c of clubs) assert.ok(freq.get(c.key) > 0, 'hiç çıkmayan kulüp: ' + c.name);
+  const hits = [...freq.values()].sort((a, b) => a - b);
+  assert.ok(hits.at(-1) <= hits[0] * 4, `kulüp dağılımı çok çarpık: ${JSON.stringify([...freq])}`);
+});
+
+test('arama: benzer isimlerde en tanınmış üstte, tam kelime kelime başından önce gelir', () => {
+  const sl = (x) => db.players[x.id].sl;
+  for (const q of ['yilmaz', 'demir', 'silva']) {
+    const hits = db.search(q, 8);
+    assert.ok(hits.length > 1, q);
+    // sorgu tam bir kelimeyse hepsi aynı kademede — sıralama tanınmışlıktan aşağı olmalı
+    for (let i = 1; i < hits.length; i++) assert.ok(sl(hits[i - 1]) >= sl(hits[i]), `${q}: ${hits[i - 1].name} < ${hits[i].name}`);
+  }
+  // "kaya" tam kelimesi, "kay" kelime başı: tam eşleşenler listenin başında durur
+  const pre = db.search('kay', 8);
+  const exact = pre.filter((x) => /(^|\s)Kaya(\s|$)/.test(x.name));
+  if (exact.length) assert.equal(pre.indexOf(exact[0]), 0, 'tam kelime eşleşmesi üstte değil');
 });
 
 /* ───────── maç motoru */

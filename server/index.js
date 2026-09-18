@@ -187,9 +187,11 @@ export function createApp({
       room: room ? rooms.snapshot(room) : null,
       queue,
       version: VERSION,
-      db: { players: db.players.length, builtAt: db.builtAt },
+      db: { players: db.players.length, builtAt: db.builtAt, cats: db.catSummary() },
     };
   }
+
+  const catListCache = db.catList(); // ~300 başlık, değişmiyor
 
   const handlers = {
     'nick/check': (s, m) => {
@@ -229,6 +231,8 @@ export function createApp({
     },
     'game/pass': (s) => void rooms.act(s, (g) => g.pass(s.pid)),
     search: (s, m) => ({ q: String(m.q ?? '').slice(0, 48), items: db.search(String(m.q ?? '')) }),
+    // Ayarlardaki kriter listesi: istemci ilk açışta bir kez ister, sonrasında kendinde tutar
+    'cats/list': () => ({ cats: catListCache }),
     ping: () => ({ now: Date.now() }),
   };
 

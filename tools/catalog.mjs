@@ -216,56 +216,61 @@ export const LEAGUES = [
   ['mls', 'Major League Soccer', 'MLS', 'MLS', /soccer|united states|north america/i],
 ];
 
-/* Kupalar. [key, başlık, kısa, Wikidata yarışması (ya da lig:anahtar), tür, tier, olumlu, olumsuz]
-   tür 'club': sezon kazananı kulüpte, finalin olduğu tarihte kadrodaysa kazanmış sayılır.
-   tür 'nt'  : turnuvaya katılmış (P1344) ve kazanan milli takımın oyuncusuysa kazanmış sayılır. */
-export const COMPETITIONS = [
-  ['ucl', 'Şampiyonlar Ligi', 'ŞL', 'Q18756', 'club', 'k', 'Şampiyonlar Ligi kazanmış', 'Şampiyonlar Ligi kazanmadı'],
-  ['uel', 'Avrupa Ligi / UEFA Kupası', 'UEL', 'Q18760', 'club', 'k', 'Avrupa Ligi (UEFA Kupası) kazanmış', 'Avrupa Ligi kazanmadı'],
-  ['wc', 'Dünya Kupası', 'DK', 'Q19317', 'nt', 'k', 'Dünya Kupası kazanmış', 'Dünya Kupası kazanmadı'],
-  ['euro', 'Avrupa Şampiyonası', 'EURO', 'Q260858', 'nt', 'k', 'Avrupa Şampiyonası (EURO) kazanmış', 'EURO kazanmadı'],
-  ['tr1', 'Süper Lig şampiyonu', 'SL', 'lg:tr1', 'club', 'k', 'Süper Lig şampiyonu olmuş', 'Süper Lig şampiyonu olmadı'],
-  ['eng', 'Premier Lig şampiyonu', 'PL', 'lg:eng', 'club', 'k', 'Premier Lig şampiyonu olmuş', 'Premier Lig şampiyonu olmadı'],
-  ['esp', 'La Liga şampiyonu', 'LL', 'lg:esp', 'club', 'k', 'La Liga şampiyonu olmuş', 'La Liga şampiyonu olmadı'],
-  ['ita', 'Serie A şampiyonu', 'SA', 'lg:ita', 'club', 'k', 'Serie A şampiyonu olmuş', 'Serie A şampiyonu olmadı'],
-  ['ger', 'Bundesliga şampiyonu', 'BL', 'lg:ger', 'club', 'k', 'Bundesliga şampiyonu olmuş', 'Bundesliga şampiyonu olmadı'],
-  ['fra', 'Ligue 1 şampiyonu', 'L1', 'lg:fra', 'club', 'u', 'Ligue 1 şampiyonu olmuş', 'Ligue 1 şampiyonu olmadı'],
+/* Teknik direktörler — elle seçilmiş liste (kullanıcı istedi: yalnız bu hocalar başlık olur).
+   Otomatik sıralama 131 hoca çıkarıyordu; çoğu tanınmıyordu. [QID, ad] */
+export const MANAGERS = [
+  ['Q164038', 'Pep Guardiola'],
+  ['Q79983', 'José Mourinho'],
+  ['Q174614', 'Carlo Ancelotti'],
+  ['Q44980', 'Alex Ferguson'],
+  ['Q47576', 'Arsène Wenger'],
+  ['Q262203', 'Fatih Terim'],
+  ['Q207431', 'Louis van Gaal'],
+  ['Q144048', 'Rafa Benítez'],
+  ['Q83106', 'Jürgen Klopp'],
+  ['Q48330', 'Roberto Mancini'],
+  ['Q26580', 'Antonio Conte'],
+  ['Q295610', 'Unai Emery'],
+  ['Q310623', 'Brendan Rodgers'],
 ];
 
-/* Jokerler (wildcard). [key, başlık, olumlu, olumsuz, tier] — hesaplaması tools/enrich.mjs'te. */
+/* Kupalar. [key, başlık, kısa, Wikidata yarışması (ya da lig:anahtar / award:ödül), tür, tier, olumlu, olumsuz]
+   tür 'club' : sezon kazananı kulüpte, finalin olduğu tarihte kadrodaysa kazanmış sayılır.
+   tür 'nt'   : turnuvaya katılmış (P1344) ve kazanan milli takımın oyuncusuysa kazanmış sayılır.
+   tür 'award': oyuncunun kendi ödülü (P166) — sezon/kadro hesabı yok. */
+export const COMPETITIONS = [
+  ['ballon', "Ballon d'Or", 'BO', 'award:Q166177', 'award', 'k', "Ballon d'Or kazanmış", "Ballon d'Or kazanmadı"],
+  ['ucl', 'Şampiyonlar Ligi', 'ŞL', 'Q18756', 'club', 'k', 'Şampiyonlar Ligi kazanmış', 'Şampiyonlar Ligi kazanmadı'],
+  ['uel', 'Avrupa Ligi / UEFA Kupası', 'UEL', 'Q18760', 'club', 'k', 'Avrupa Ligi (UEFA Kupası) kazanmış', 'Avrupa Ligi kazanmadı'],
+  ['uecl', 'Konferans Ligi', 'KL', 'Q59365764', 'club', 'k', 'UEFA Konferans Ligi kazanmış', 'Konferans Ligi kazanmadı'],
+  ['ger', 'Bundesliga şampiyonu', 'BL', 'lg:ger', 'club', 'k', 'Bundesliga şampiyonu olmuş', 'Bundesliga şampiyonu olmadı'],
+  ['ita', 'Serie A şampiyonu', 'SA', 'lg:ita', 'club', 'k', 'Serie A şampiyonu olmuş', 'Serie A şampiyonu olmadı'],
+  ['esp', 'La Liga şampiyonu', 'LL', 'lg:esp', 'club', 'k', 'La Liga şampiyonu olmuş', 'La Liga şampiyonu olmadı'],
+  ['eng', 'Premier Lig şampiyonu', 'PL', 'lg:eng', 'club', 'k', 'Premier Lig şampiyonu olmuş', 'Premier Lig şampiyonu olmadı'],
+  ['tr1', 'Süper Lig şampiyonu', 'SL', 'lg:tr1', 'club', 'k', 'Süper Lig şampiyonu olmuş', 'Süper Lig şampiyonu olmadı'],
+  ['copa', 'Copa América', 'CA', 'Q178750', 'nt', 'k', 'Copa América kazanmış', 'Copa América kazanmadı'],
+  ['euro', 'Avrupa Şampiyonası', 'EURO', 'Q260858', 'nt', 'k', 'Avrupa Şampiyonası (EURO) kazanmış', 'EURO kazanmadı'],
+  ['wc', 'Dünya Kupası', 'DK', 'Q19317', 'nt', 'k', 'Dünya Kupası kazanmış', 'Dünya Kupası kazanmadı'],
+];
+
+/* Özel şartlar (joker). [key, başlık, olumlu, olumsuz, tier] — hesaplaması tools/enrich.mjs'te.
+   Liste kullanıcının seçimi: büyük başarılar (final, treble, çoklu şampiyonluk, çok lig).
+   Buradan bir satırı silmek yeter — enrich `mark()` ile sessizce atlar. */
 export const WILDCARDS = [
-  ['ballon', "Ballon d'Or", "Ballon d'Or kazanmış", "Ballon d'Or kazanmadı", 'k'],
-  ['wcplay', "Dünya Kupası'nda oynadı", "Dünya Kupası'nda oynamış", "Dünya Kupası'nda oynamadı", 'k'],
-  ['y2000', '2000 sonrası doğumlu', '2000 ya da sonrasında doğmuş', '2000 öncesi doğmuş', 'k'],
-  ['pre1980', '1980 öncesi doğumlu', '1980 öncesi doğmuş', '1980 öncesi doğmamış', 'k'],
-  ['clubs8', '8+ takımda oynadı', 'En az 8 farklı takımda oynamış (kiralık ve altyapı dahil)', '8 farklı takıma ulaşmamış', 'u'],
-  ['coach', 'Teknik direktör oldu', 'Sonradan teknik direktörlük de yapmış', 'teknik direktörlük yapmamış', 'k'],
-  // kupa sayıları, lig sayıları, doğum on yılı, treble, bilgi kutusundaki lig maçı/golü
-  ['ucl2', '2+ Şampiyonlar Ligi', 'En az 2 kez Şampiyonlar Ligi kazanmış', '2 kez Şampiyonlar Ligi kazanmadı', 'k'],
-  ['lt2big', "5 büyük ligin 2+'sinde şampiyon", '5 büyük ligin en az ikisinde şampiyon olmuş', '5 büyük ligin ikisinde şampiyon olmadı', 'k'],
-  ['big3', "5 büyük ligin 3+'ünde oynadı", "5 büyük ligin (İngiltere, İspanya, İtalya, Almanya, Fransa) en az üçünde oynamış", '5 büyük ligin üçünde oynamadı', 'k'],
+  ['uclfinal', 'ŞL finali oynadı', 'Şampiyonlar Ligi (Avrupa Kupası) finalinde kadroda olmuş', 'Şampiyonlar Ligi finali oynamadı', 'k'],
+  ['uclfinalgoal', 'ŞL finalinde gol attı', 'Şampiyonlar Ligi finalinde gol atmış', 'Şampiyonlar Ligi finalinde gol atmadı', 'k'],
+  ['wcfinal', 'Dünya Kupası finali oynadı', 'Dünya Kupası finalinde kadroda olmuş', 'Dünya Kupası finali oynamadı', 'k'],
+  ['wcfinalgoal', 'Dünya Kupası finalinde gol attı', 'Dünya Kupası finalinde gol atmış', 'Dünya Kupası finalinde gol atmadı', 'k'],
+  ['uclwc', 'ŞL + Dünya Kupası', 'Hem Şampiyonlar Ligi hem Dünya Kupası kazanmış', 'ikisini birlikte kazanmadı', 'k'],
+  ['treble', 'Treble kazandı', 'Aynı sezon lig, kupa ve Şampiyonlar Ligi kazanan takımda oynamış', 'treble kazanmadı', 'k'],
+  ['big3', "5 büyük ligin 3+'ünde oynadı", '5 büyük ligin (İngiltere, İspanya, İtalya, Almanya, Fransa) en az üçünde oynamış', '5 büyük ligin üçünde oynamadı', 'k'],
   ['big4', "5 büyük ligin 4+'ünde oynadı", '5 büyük ligin en az dördünde oynamış', '5 büyük ligin dördünde oynamadı', 'u'],
-  ['lt3tr1', '3+ Süper Lig şampiyonluğu', 'En az 3 kez Süper Lig şampiyonu olmuş', '3 kez Süper Lig şampiyonu olmadı', 'k'],
-  ['lt3eng', '3+ Premier Lig şampiyonluğu', 'En az 3 kez Premier Lig şampiyonu olmuş', '3 kez Premier Lig şampiyonu olmadı', 'k'],
+  ['ucl3', '3+ Şampiyonlar Ligi', 'En az 3 kez Şampiyonlar Ligi kazanmış', '3 kez Şampiyonlar Ligi kazanmadı', 'k'],
   ['lt3esp', '3+ La Liga şampiyonluğu', 'En az 3 kez La Liga şampiyonu olmuş', '3 kez La Liga şampiyonu olmadı', 'k'],
+  ['lt3eng', '3+ Premier Lig şampiyonluğu', 'En az 3 kez Premier Lig şampiyonu olmuş', '3 kez Premier Lig şampiyonu olmadı', 'k'],
   ['lt3ita', '3+ Serie A şampiyonluğu', 'En az 3 kez Serie A şampiyonu olmuş', '3 kez Serie A şampiyonu olmadı', 'k'],
   ['lt3ger', '3+ Bundesliga şampiyonluğu', 'En az 3 kez Bundesliga şampiyonu olmuş', '3 kez Bundesliga şampiyonu olmadı', 'k'],
-  ['d70', "1970'lerde doğdu", '1970-1979 arasında doğmuş', "70'lerde doğmadı", 'k'],
-  ['d80', "1980'lerde doğdu", '1980-1989 arasında doğmuş', "80'lerde doğmadı", 'k'],
-  ['d90', "1990'larda doğdu", '1990-1999 arasında doğmuş', "90'larda doğmadı", 'k'],
-  ['treble', 'Treble kazandı', 'Aynı sezon lig, kupa ve Şampiyonlar Ligi kazanan takımda oynamış', 'treble kazanmadı', 'k'],
-  ['apps300', 'Tek kulüpte 300+ lig maçı', 'Bir kulüpte en az 300 lig maçına çıkmış', 'tek kulüpte 300 lig maçına çıkmadı', 'u'],
-  ['goals100', '100+ lig golü', 'Kariyerinde en az 100 lig golü atmış', '100 lig golüne ulaşmadı', 'k'],
-  ['ucl3', '3+ Şampiyonlar Ligi', 'En az 3 kez Şampiyonlar Ligi kazanmış', '3 kez Şampiyonlar Ligi kazanmadı', 'k'],
-  ['uclfinal', 'ŞL finali oynamış', 'Şampiyonlar Ligi (Avrupa Kupası) finalinde kadroda olmuş', 'Şampiyonlar Ligi finali oynamadı', 'k'],
-  ['ucl2clubs', '2 farklı takımla ŞL', 'İki ayrı kulüple Şampiyonlar Ligi kazanmış', 'iki ayrı kulüple Şampiyonlar Ligi kazanmadı', 'u'],
-  ['nt100', 'Milli takımda 100+ maç', 'A milli takımında en az 100 maç oynamış', 'milli takımda 100 maça ulaşmadı', 'k'],
-  ['nt30g', 'Milli takımda 30+ gol', 'A milli takımında en az 30 gol atmış', 'milli takımda 30 gole ulaşmadı', 'k'],
-  ['apps500', 'Tek kulüpte 500+ lig maçı', 'Bir kulüpte en az 500 lig maçına çıkmış', 'tek kulüpte 500 lig maçına çıkmadı', 'u'],
-  ['oneclub', 'Tek kulüp adamı', 'A takım kariyerini tek kulüpte geçirmiş (150+ lig maçı)', 'kariyerini tek kulüpte geçirmedi', 'k'],
-  ['age35', '35 yaşından sonra oynadı', '35 yaşından sonra da oynamış', '35 yaşından sonra oynamadı', 'k'],
-  ['active', 'Hâlâ oynuyor', '2026-27 sezonunda bir kulüpte', 'artık oynamıyor', 'k'],
-  ['topscorer', 'Lig gol kralı', 'Bir ligde gol kralı olmuş', 'lig gol kralı olmadı', 'u'],
+  ['lt3tr1', '3+ Süper Lig şampiyonluğu', 'En az 3 kez Süper Lig şampiyonu olmuş', '3 kez Süper Lig şampiyonu olmadı', 'k'],
 ];
 
 /* Treble: aynı sezon lig + kupa + Avrupa Kupası/Şampiyonlar Ligi. [kulüp, sezonun bittiği yıl] */

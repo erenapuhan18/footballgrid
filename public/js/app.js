@@ -15,6 +15,25 @@ const MODE = {
   uzman: { name: 'Uzman', desc: 'Bütün kulüpler, mevkiler, zor başlıklar · hücre çalma' },
 };
 const WIN = { line3: "3'leme", most: 'En çok hücre', points: 'Nadirlik puanı' };
+/* Izgarada çıkabilecek başlık türleri. Kulüp her zaman açık; kalanlar oda ayarlarında tek tek kapatılabilir.
+   Örnekler sunucudan gelen künyeyle (S.db.cats) tazelenir, gelmezse buradaki yazı kalır. */
+const CAT_TYPES = ['nat', 'lg', 'cup', 'mgr', 'mate', 'wild', 'ht', 'pos'];
+const CAT_INFO = {
+  club: { name: 'Kulüp', ex: 'Galatasaray, Real Madrid…' },
+  nat: { name: 'Ülke', ex: 'Türkiye, Brezilya…' },
+  lg: { name: 'Lig', ex: "Süper Lig'de oynadı…" },
+  cup: { name: 'Kupa', ex: 'Şampiyonlar Ligi, Dünya Kupası…' },
+  mgr: { name: 'Teknik direktör', ex: 'Mourinho ile çalıştı…' },
+  mate: { name: 'Takım arkadaşı', ex: 'Zlatan ile oynadı…' },
+  wild: { name: 'Özel şart', ex: "Ballon d'Or, üç büyükten ikisi…" },
+  ht: { name: 'Boy', ex: '1,90 m ve üstü, 1,75 m ve altı…' },
+  pos: { name: 'Mevki', ex: 'Kaleci, defans · yalnız Uzman' },
+};
+const catText = (t) => {
+  const info = CAT_INFO[t];
+  const s = S.db?.cats?.[t];
+  return [info.name, s ? `${s.n} başlık · ${s.sample.join(', ')}` : info.ex];
+};
 
 const S = {
   pid: null,
@@ -22,6 +41,7 @@ const S = {
   queue: null,
   publicUrl: location.origin,
   db: null,
+  catList: null,
   welcomed: false,
   routeCode: codeFromPath(),
   records: {},
@@ -52,6 +72,9 @@ function settingsText(s) {
   if (s.rounds > 1) parts.push(`${s.rounds} maçlık seri`);
   parts.push(s.hints ? 'İpucu açık' : 'İpucu kapalı');
   parts.push(s.reuse ? 'Aynı futbolcu tekrar olur' : 'Aynı futbolcu bir kez');
+  const off = CAT_TYPES.filter((t) => !(s.cats || CAT_TYPES).includes(t));
+  if (off.length) parts.push(off.length === CAT_TYPES.length ? 'Yalnız kulüp başlıkları' : `Kapalı: ${off.map((t) => CAT_INFO[t].name.toLocaleLowerCase('tr')).join(', ')}`);
+  if (s.off?.length) parts.push(`${s.off.length} başlık kapalı`);
   return parts.join(' · ');
 }
 
@@ -296,11 +319,89 @@ async function checkNick(input, err) {
   }
 }
 
+/* ───────── kriter seçici */
+
+/** Bütün başlıkların listesi (tür → [{k, n, c}]). Sunucudan bir kez alınır, sonra bellekte durur. */
+async function catList() {
+  if (!S.catList) S.catList = (await net.request('cats/list')).cats || {};
+  return S.catList;
+}
+
+const trFold = (s) =>
+  String(s).replace(/I/g, 'ı').toLocaleLowerCase('tr')
+    .replace(/[ıİ]/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+/** Bir türün içindeki başlıklar: tek tek aç/kapa. Değişiklik anında `st.off`a yazılır. */
+async function pickCats(type, st, onChange) {
+  const info = CAT_INFO[type];
+  let all;
+  try {
+    all = (await catList())[type] || [];
+  } catch {
+    return toast('Kriter listesi alınamadı, bağlantını kontrol et.', 'error');
+  }
+  const isOff = (k) => st.off.includes(k);
+  const setOff = (k, off) => {
+    st.off = off ? [...new Set([...st.off, k])] : st.off.filter((x) => x !== k);
+  };
+  const rows = h('div', { class: 'pick-list' });
+  const count = h('p', { class: 'hint' });
+  const draw = (q = '') => {
+    const needle = trFold(q);
+    const list = needle ? all.filter((x) => trFold(x.n).includes(needle)) : all;
+    put(rows, list.length
+      ? list.map((x) =>
+          h('label', { class: 'pick' },
+            h('input', {
+              type: 'checkbox', checked: !isOff(x.k),
+              on: { change: (e) => { setOff(x.k, !e.target.checked); after(); } },
+            }),
+            h('span', { class: 'pick-body' }, h('b', {}, x.n), h('small', {}, `${x.c} cevap${x.u ? ' · Uzman' : ''}`))))
+      : h('p', { class: 'hint' }, 'Eşleşen başlık yok.'));
+  };
+  const after = () => {
+    const on = all.filter((x) => !isOff(x.k)).length;
+    const warn = type === 'club' && on < 5 ? ' — bu kadar az kulüple ızgara kurulamaz' : on === 0 ? ' — bu tür ızgarada hiç çıkmaz' : '';
+    count.textContent = `${on}/${all.length} açık${warn}`;
+    count.classList.toggle('warn', !!warn);
+    // Hepsi kapatıldıysa tür de kapansın; biri açıldıysa tür geri açılsın (kulüp hep açık)
+    if (type !== 'club') {
+      if (on === 0) st.cats = st.cats.filter((x) => x !== type);
+      else if (!st.cats.includes(type)) st.cats = [...st.cats, type];
+    }
+    onChange();
+  };
+  const bulk = (off) => {
+    st.off = off ? [...new Set([...st.off, ...all.map((x) => x.k)])] : st.off.filter((k) => !k.startsWith(type + ':'));
+    draw(search?.value || '');
+    after();
+  };
+  const search = all.length > 14
+    ? h('input', { class: 'input', type: 'search', placeholder: 'Ara…', 'aria-label': 'Başlık ara', on: { input: (e) => draw(e.target.value) } })
+    : null;
+  draw();
+  after();
+  modal(info.name.toLocaleUpperCase('tr'),
+    h('div', { class: 'pick-wrap' },
+      h('p', { class: 'hint' }, 'İşareti kaldırdığın başlık ızgarada çıkmaz.'),
+      search,
+      h('div', { class: 'pick-bulk' },
+        h('button', { class: 'btn ghost small', type: 'button', on: { click: () => bulk(false) } }, 'HEPSİ'),
+        h('button', { class: 'btn ghost small', type: 'button', on: { click: () => bulk(true) } }, 'HİÇBİRİ')),
+      count, rows),
+    { actions: [(close) => h('button', { class: 'btn primary', on: { click: close } }, 'TAMAM')] });
+}
+
 /** Oda ayarları formu — oda kurarken ve lobide (host) aynı bileşen. */
 function SettingsForm(init = {}, { minCapacity = 2 } = {}) {
   const st = { capacity: 2, mode: 'klasik', turnTime: 30, win: 'line3', style: 'turn', matchTime: 180, rounds: 1, hints: true, reuse: false, ...init };
+  st.cats = CAT_TYPES.filter((t) => (Array.isArray(init.cats) ? init.cats : CAT_TYPES).includes(t));
+  st.off = Array.isArray(init.off) ? [...init.off] : [];
   const uid = Math.random().toString(36).slice(2, 7); // aynı sayfada iki form olursa radio adları çakışmasın
   const note = h('p', { class: 'hint center' });
+  const catNote = h('p', { class: 'hint' });
+  const catSum = h('summary', { class: 'label' });
   const boxes = {};
   const update = () => {
     const size = st.mode === 'hizli' || st.capacity === 2 ? 3 : 4;
@@ -317,6 +418,12 @@ function SettingsForm(init = {}, { minCapacity = 2 } = {}) {
     boxes.turnTime.hidden = st.style !== 'turn';
     boxes.matchTime.hidden = st.style !== 'race';
     for (const [key, box] of Object.entries(boxes)) for (const i of box.querySelectorAll('input')) i.checked = String(st[key]) === i.value;
+    for (const r of Object.values(catRows)) r.sync();
+    const shut = st.off.length;
+    catSum.textContent = `Izgara kriterleri · ${st.cats.length}/${CAT_TYPES.length} tür${shut ? ` · ${shut} başlık kapalı` : ''}`;
+    catNote.textContent = st.cats.length
+      ? 'Kulüp başlıkları her zaman var. SEÇ ile bir türün içine girip istemediğin başlıkları tek tek kapatabilirsin.'
+      : 'Türlerin hepsi kapalı: ızgarada yalnızca kulüp başlıkları çıkar.';
   };
   const group = (title, key, opts) =>
     (boxes[key] = h('fieldset', { class: 'group' }, h('legend', { class: 'label' }, title),
@@ -327,6 +434,34 @@ function SettingsForm(init = {}, { minCapacity = 2 } = {}) {
             on: { change: () => { st[key] = v; if (key === 'capacity' && st.win !== 'points') st.win = v === 4 ? 'most' : 'line3'; update(); } },
           }),
           h('span', { class: 'chip-body' }, h('b', {}, label), desc ? h('small', {}, desc) : null))))));
+  /* Izgara kriterleri: her tür bir satır — solda aç/kapa kutusu, sağda SEÇ (türün içindeki başlıklar).
+     Kulüp satırının kutusu yok (kulüp başlıkları hep açık) ama içine girip tek tek kapatılabilir. */
+  const catRows = {};
+  const catBox = h('div', { class: 'cat-list' }, ['club', ...CAT_TYPES].map((t) => {
+    const info = CAT_INFO[t];
+    const small = h('small', {});
+    const box = t === 'club'
+      ? h('span', { class: 'cat-always', title: 'Kulüp başlıkları her zaman açık' }, '✓')
+      : h('input', {
+          type: 'checkbox', value: t,
+          on: { change: (e) => { setType(t, e.target.checked); update(); } },
+        });
+    const sync = () => {
+      const total = S.db?.cats?.[t]?.n || 0;
+      const shut = st.off.filter((k) => k.startsWith(t + ':')).length;
+      if (box.tagName === 'INPUT') box.checked = st.cats.includes(t);
+      small.textContent = shut ? `${total - shut}/${total} başlık açık` : catText(t)[1];
+    };
+    catRows[t] = { sync };
+    return h('div', { class: 'cat-row' },
+      h('label', { class: 'cat-tog' }, box, h('span', { class: 'cat-name' }, h('b', {}, info.name), small)),
+      h('button', { class: 'btn small ghost', type: 'button', on: { click: () => pickCats(t, st, update) } }, 'SEÇ'));
+  }));
+  /** Tür kutusu: kapatınca tür tamamen çıkar; açarken o türde tek tek kapatılmışlar da geri gelir. */
+  const setType = (t, on) => {
+    st.cats = on ? [...new Set([...st.cats, t])] : st.cats.filter((x) => x !== t);
+    if (on) st.off = st.off.filter((k) => !k.startsWith(t + ':'));
+  };
   const el = h('div', { class: 'settings-form' },
     group('Oyuncu sayısı', 'capacity', [2, 3, 4].map((n) => [n, `${n} Kişi`, null, n < minCapacity])),
     group('Oyun modu', 'mode', Object.entries(MODE).map(([k, m]) => [k, m.name, m.desc])),
@@ -348,6 +483,7 @@ function SettingsForm(init = {}, { minCapacity = 2 } = {}) {
     ]),
     group('İpucu', 'hints', [[true, 'Açık', 'Maç başına 1 ipucu'], [false, 'Kapalı', 'İpucu yok']]),
     group('Aynı futbolcu', 'reuse', [[false, 'Bir kez', 'Her futbolcu maçta bir kez'], [true, 'Tekrar olur', 'Birden çok hücrede kullanılabilir']]),
+    h('details', { class: 'group cat-group' }, catSum, catBox, catNote), // uzun liste kapalı durur, isteyen açar
     note);
   update();
   return { el, get: () => ({ ...st }) };

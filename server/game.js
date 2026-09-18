@@ -250,7 +250,7 @@ export class Game extends EventEmitter {
     }
 
     me.stats.wrong++;
-    const reasons = [!okRow && this.db.failText(row), !okCol && this.db.failText(col)].filter(Boolean);
+    const reasons = [!okRow && this.db.failText(row, player), !okCol && this.db.failText(col, player)].filter(Boolean);
     this.pushLog({ kind: 'wrong', pid, cell, name: player.name, reasons });
     if (this.style === 'race') {
       me.cooldownUntil = Date.now() + RACE_PENALTY_MS;
@@ -291,7 +291,13 @@ export class Game extends EventEmitter {
     const pos = (this.db.byType.pos || []).filter((c) => c && this.db.matches(p, c)).map((c) => c.name);
     return {
       ok: true,
-      hint: { nats: this.db.natNames(p), pos, age: p.by ? new Date().getFullYear() - p.by : null, recent: recent.length > 0 },
+      hint: {
+        initials: this.db.initials(p), // ad ve soyadın baş harfi — kaç harf olduğu yazılmaz
+        nats: this.db.natNames(p),
+        pos,
+        age: p.by ? new Date().getFullYear() - p.by : null,
+        recent: recent.length > 0,
+      },
     };
   }
 

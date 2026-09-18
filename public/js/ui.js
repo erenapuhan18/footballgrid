@@ -296,11 +296,8 @@ function tactics(px) {
 
 // Her jokerin kendi kısa işareti — hepsi aynı yıldız olmasın
 const WILD_GLYPH = {
-  ballon: 'BO', wcplay: 'DK', y2000: '00', pre1980: '<80', clubs8: '8', coach: 'TD',
-  ucl2: '2×', ucl3: '3×', uclfinal: 'F', ucl2clubs: '2K', lt2big: '2L', big3: '3L', big4: '4L',
-  lt3tr1: 'SL', lt3eng: 'PL', lt3esp: 'LL', lt3ita: 'SA', lt3ger: 'BL',
-  d70: '70', d80: '80', d90: '90', treble: '3', apps300: '300', apps500: '500', goals100: '100',
-  nt100: '100', nt30g: '30', oneclub: '1K', age35: '35', active: 'ŞİM', topscorer: 'GOL',
+  uclfinal: 'F', uclfinalgoal: 'FG', wcfinal: 'DKF', wcfinalgoal: 'DKG', uclwc: 'Ş+D', treble: '3',
+  big3: '3L', big4: '4L', ucl3: '3×', lt3esp: 'LL', lt3eng: 'PL', lt3ita: 'SA', lt3ger: 'BL', lt3tr1: 'SL',
   derby: '3B', trforeign: 'YAB', trabroad: 'TR',
 };
 
@@ -320,6 +317,21 @@ function joker(px, glyph) {
   );
 }
 
+/** Boy: ölçü şeridi — eşik santimi + yön (üstü ▲ / altı ▼). */
+function ruler(px, cm, over) {
+  return s(
+    'svg',
+    { viewBox: '0 0 40 40', width: px, height: px, class: 'ruler', 'aria-hidden': 'true' },
+    s('rect', { x: 4.5, y: 8, width: 31, height: 24, rx: 6, fill: '#2563eb', stroke: '#14203a', 'stroke-width': 2.2 }),
+    s('path', { d: 'M12 12.5v15M9 12.5h6M9 27.5h6', stroke: '#ffffff', 'stroke-width': 1.8, 'stroke-linecap': 'round', opacity: 0.9 }),
+    s('path', { d: over ? 'M12 13.5l3 4h-6z' : 'M12 26.5l3-4h-6z', fill: '#ffffff' }),
+    s('text', {
+      x: 25.5, y: 20.5, 'text-anchor': 'middle', 'dominant-baseline': 'central', fill: '#ffffff',
+      'font-size': 12.5, 'font-weight': 900, 'font-family': 'Archivo, system-ui, sans-serif',
+    }, String(cm)),
+  );
+}
+
 export function catIcon(cat, px = 30) {
   if (cat.type === 'club') return crest(cat, px);
   if (cat.type === 'nat') return flag(cat.flag, px + 4);
@@ -327,6 +339,7 @@ export function catIcon(cat, px = 30) {
   if (cat.type === 'cup') return trophy(cat.short, px);
   if (cat.type === 'mgr' || cat.type === 'mate') return tactics(px);
   if (cat.type === 'wild') return joker(px, WILD_GLYPH[String(cat.key || '').split(':')[1]]);
+  if (cat.type === 'ht') return ruler(px, cat.cm, cat.over);
   return jersey(cat.key, px);
 }
 
@@ -355,7 +368,9 @@ export function playerCard(card) {
   const years = (c) => (c.from === null || c.from === undefined ? '' : `${c.from}–${c.to === 0 ? 'bugün' : c.to ?? '?'}`);
   const section = (title, body) => h('div', { class: 'pc-sec' }, h('p', { class: 'label' }, title), body);
   const age = card.by ? new Date().getFullYear() - card.by : null;
-  const meta = [age ? `${age} yaşında` : null, card.pos?.length ? card.pos.join(', ') : null].filter(Boolean).join(' · ');
+  const meta = [age ? `${age} yaşında` : null, card.ht ? (card.ht / 100).toFixed(2).replace('.', ',') + ' m' : null, card.pos?.length ? card.pos.join(', ') : null]
+    .filter(Boolean)
+    .join(' · ');
   return h(
     'div',
     { class: 'pcard' },

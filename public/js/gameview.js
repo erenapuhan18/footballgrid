@@ -239,6 +239,7 @@ export function GameScreen(ctx) {
     try {
       const { hint: x } = await net.request('game/hint', { cell });
       const bits = [
+        x.initials || null, // "A. G." — adın ve soyadın baş harfi
         x.nats?.length ? x.nats.join(' / ') : 'uyruğu bilinmiyor',
         x.pos?.length ? x.pos.join(', ') : null,
         x.age ? `${x.age} yaşında` : null,

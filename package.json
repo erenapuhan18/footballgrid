@@ -15,7 +15,8 @@
     "test": "node --test \"test/*.test.mjs\"",
     "data:resolve": "node tools/build-data.mjs --resolve",
     "data:build": "node tools/build-data.mjs --build",
-    "data:enrich": "node --max-old-space-size=1200 tools/enrich.mjs"
+    "data:enrich": "node --max-old-space-size=1200 tools/enrich.mjs",
+    "data:heights": "node tools/heights.mjs"
   },
   "dependencies": {
     "ws": "^8.18.0"

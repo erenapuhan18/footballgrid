@@ -1,7 +1,8 @@
 /* Futbolcu veritabanı: kategoriler, bit kümeleri (hücre başına cevap sayımı), isim araması ve oyuncu kartı.
-   Kategori türleri: club · nat (uyruk) · lg (lig) · pos (mevki) · cup (kupa) · mgr (menajer) · mate (takım arkadaşı) · wild (joker) */
+   Kategori türleri: club · nat (uyruk) · lg (lig) · pos (mevki) · cup (kupa) · mgr (menajer) · mate (takım arkadaşı) ·
+   wild (joker) · ht (boy: server/data/heights.json, `tools/heights.mjs` ile Wikidata P2048'den) */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { fold, locative } from './text.js';
 
 // Otomatik ek kuralının okunuşla tutmadığı kulüpler.
@@ -25,51 +26,67 @@ const LOC_OVERRIDE = {
 const CUP_HEAD = {
   ucl: ['Şampiyonlar Ligi', 'kazandı'],
   uel: ['UEFA Kupası / Avrupa Ligi', 'kazandı'],
+  uecl: ['Konferans Ligi', 'kazandı'],
   wc: ['Dünya Kupası', 'kazandı'],
   euro: ['EURO', 'kazandı'],
+  copa: ['Copa América', 'kazandı'],
+  ballon: ["Ballon d'Or", 'kazandı'],
   tr1: ['Süper Lig', 'şampiyonu oldu'],
   eng: ['Premier Lig', 'şampiyonu oldu'],
   esp: ['La Liga', 'şampiyonu oldu'],
   ita: ['Serie A', 'şampiyonu oldu'],
   ger: ['Bundesliga', 'şampiyonu oldu'],
-  fra: ['Ligue 1', 'şampiyonu oldu'],
 };
 const WILD_HEAD = {
-  ballon: ["Ballon d'Or", 'kazandı'],
-  wcplay: ["Dünya Kupası'nda", 'oynadı'],
-  y2000: ['2000 ve sonrası', 'doğumlu'],
-  pre1980: ['1980 öncesi', 'doğumlu'],
-  clubs8: ['8+ takımda', 'oynadı'],
-  coach: ['Teknik direktör', 'oldu'],
-  ucl2: ['2+ Şampiyonlar Ligi', 'kazandı'],
-  lt2big: ["5 büyük ligin 2+'sinde", 'şampiyon oldu'],
+  uclfinal: ['Şampiyonlar Ligi finali', 'oynadı'],
+  uclfinalgoal: ['ŞL finalinde', 'gol attı'],
+  wcfinal: ['Dünya Kupası finali', 'oynadı'],
+  wcfinalgoal: ['Dünya Kupası finalinde', 'gol attı'],
+  uclwc: ['ŞL + Dünya Kupası', 'kazandı'],
+  treble: ['Treble', 'kazandı'],
   big3: ["5 büyük ligin 3+'ünde", 'oynadı'],
   big4: ["5 büyük ligin 4+'ünde", 'oynadı'],
-  lt3tr1: ['3+ kez Süper Lig', 'şampiyonu oldu'],
-  lt3eng: ['3+ kez Premier Lig', 'şampiyonu oldu'],
+  ucl3: ['3+ Şampiyonlar Ligi', 'kazandı'],
   lt3esp: ['3+ kez La Liga', 'şampiyonu oldu'],
+  lt3eng: ['3+ kez Premier Lig', 'şampiyonu oldu'],
   lt3ita: ['3+ kez Serie A', 'şampiyonu oldu'],
   lt3ger: ['3+ kez Bundesliga', 'şampiyonu oldu'],
-  d70: ["1970'lerde", 'doğdu'],
-  d80: ["1980'lerde", 'doğdu'],
-  d90: ["1990'larda", 'doğdu'],
-  treble: ['Treble', 'kazandı'],
-  apps300: ['Tek kulüpte 300+', 'lig maçı oynadı'],
-  goals100: ['100+ lig golü', 'attı'],
-  ucl3: ['3+ Şampiyonlar Ligi', 'kazandı'],
-  uclfinal: ['Şampiyonlar Ligi finali', 'oynadı'],
-  ucl2clubs: ['2 farklı takımla', 'ŞL kazandı'],
-  nt100: ['Milli takımda 100+', 'maç oynadı'],
-  nt30g: ['Milli takımda 30+', 'gol attı'],
-  apps500: ['Tek kulüpte 500+', 'lig maçı oynadı'],
-  oneclub: ['Kariyeri tek kulüpte', 'geçti'],
-  age35: ['35 yaşından sonra', 'oynadı'],
-  active: ['Hâlâ', 'oynuyor'],
-  topscorer: ['Bir ligde', 'gol kralı oldu'],
+  lt3tr1: ['3+ kez Süper Lig', 'şampiyonu oldu'],
 };
 
 // Klasik modda da görünen büyük ligler (diğerleri yalnızca Uzman)
 const BIG_LEAGUES = new Set(['tr1', 'eng', 'esp', 'ita', 'ger', 'fra']);
+
+/* Hangi kulüpler ızgara başlığı olur (kullanıcının seçimi):
+   · tanınmış (sl≥15) cevabı CLUB_MIN'in altında kalan kulüp başlık olmaz,
+   · CLUB_DROP elle çıkarılanlar — eşiğin üstünde ama istenmeyen kulüpler,
+   · CLUB_KEEP eşikten muaf: Süper Lig'in dördü (Trabzonspor 151 cevapla eşiğin altında kalıyordu).
+   Kulüp verisi silinmez: oyuncu kartında kariyeri olduğu gibi görünür, yalnız başlık listesinden düşer. */
+const KNOWN_SL = 15;
+const CLUB_MIN = 206;
+const CLUB_KEEP = new Set(['gs', 'fb', 'bjk', 'ts']);
+const CLUB_DROP = new Set([
+  'whu', 'fla', 'samp', 'rcde', 'tor', 'val', 'sep', 'spfc', 'sccp', 'lee', 'udi',
+  'prm', 'vfb', 'boca', 'dep', 'hsv', 'asse', 'ogcn', 'fcgb', 'czv', 'svw', 'sou',
+]);
+
+/* Boy başlıkları (cm). Üstüste binmeleri sorun değil: bir ızgarada tek bir boy başlığı olur.
+   Tanınmış (sl≥15) futbolcu sayıları: ≥195:217 · ≥190:1289 · ≥185:3665 · ≤175:2563 · ≤170:813 · ≤165:134
+   → uçlar (195/165) Uzman'a bırakıldı. */
+const HEIGHTS = [
+  { key: 'h195', cm: 195, over: true, tier: 'u' },
+  { key: 'h190', cm: 190, over: true, tier: 'k' },
+  { key: 'h185', cm: 185, over: true, tier: 'k' },
+  { key: 'h175', cm: 175, over: false, tier: 'k' },
+  { key: 'h170', cm: 170, over: false, tier: 'k' },
+  { key: 'h165', cm: 165, over: false, tier: 'u' },
+];
+const metre = (cm) => (cm / 100).toFixed(2).replace('.', ',') + ' m';
+
+/* Hiç tanınmayanlar kadroya alınmaz: sitelink (kaç Wikipedia dilinde maddesi var) eşiği. En zor mod olan
+   Uzman bile cevapları ilk sl≥5 futbolcu içinde arar — altındakiler kimsenin bilmediği, aramayı şişiren
+   isimlerdi (50.140 → ~31.600). Eşiği düşürmek ızgara üretimini etkilemez, yalnız arama listesini kirletir. */
+const MIN_SL = 5;
 
 // Wikidata'da futbolcu + kulüp üyesi diye işaretlenmiş ama futbolcu olmayan kayıtlar.
 const DENY = new Set([
@@ -89,10 +106,14 @@ export class FootballDB {
     const raw = JSON.parse(readFileSync(file, 'utf8'));
     this.builtAt = raw.enrichedAt || raw.builtAt;
     this.source = raw.source;
+    // Boylar ayrı dosyada (qid → cm): `data:enrich` db.json'u yeniden yazdığında kaybolmasınlar
+    const htFile = file.replace(/db(\.[a-z]+)?\.json$/, 'heights.json');
+    const ht = existsSync(htFile) ? JSON.parse(readFileSync(htFile, 'utf8')) : {};
+    this.heights = Object.keys(ht).length;
     this.players = raw.players
-      .filter((p) => !DENY.has(p[8]))
+      .filter((p) => !DENY.has(p[8]) && p[2] >= MIN_SL)
       .map(([name, by, sl, clubs, nats, leagues, pos, aliases, qid, cups, mgrs, wild, st, mates], i) => ({
-        i, name, by, sl, clubs, nats, leagues, pos, qid,
+        i, name, by, sl, clubs, nats, leagues, pos, qid, ht: ht[qid] || 0,
         aliases: aliases || [], cups: cups || [], mgrs: mgrs || [], wild: wild || [], st: st || null, mates: mates || [],
       }));
     // dosyada sitelink sayısına göre azalan sıralı → düşük indeks = daha tanınmış
@@ -119,8 +140,15 @@ export class FootballDB {
       })),
       ...wilds.map((w, idx) => ({ key: 'wild:' + w.key, type: 'wild', idx, name: w.name, tier: w.tier, desc: w.desc, fail: w.fail, wildKey: w.key })),
       ...this.turkishWilds(raw, wilds.length),
+      ...HEIGHTS.map((b, idx) => ({
+        key: 'ht:' + b.key, type: 'ht', idx, tier: b.tier, cm: b.cm, over: b.over,
+        name: `${metre(b.cm)} ve ${b.over ? 'üstü' : 'altı'}`,
+        head: [`${metre(b.cm)} ve ${b.over ? 'üstü' : 'altı'}`, 'boyunda'],
+        desc: `${metre(b.cm)} ve ${b.over ? 'üstü' : 'altı'} boyunda`,
+        fail: `${metre(b.cm)}'${b.over ? 'den kısa' : 'den uzun'}`,
+        test: (p) => p.ht > 0 && (b.over ? p.ht >= b.cm : p.ht <= b.cm),
+      })),
     ];
-    this.catByKey = new Map(this.cats.map((c) => [c.key, c]));
     this.byType = {};
     for (const c of this.cats) (this.byType[c.type] ||= [])[c.idx] = c;
 
@@ -133,6 +161,15 @@ export class FootballDB {
       cat.bits = bits;
       cat.size = this.count(cat, cat, N);
     }
+    // Başlık olmayacak kulüpler listeden düşer; veri kalır (oyuncu kartında kariyeri eksilmesin)
+    const known = this.knownLimit(KNOWN_SL);
+    for (const c of this.cats) {
+      if (c.type !== 'club' || CLUB_KEEP.has(c.clubKey)) continue;
+      c.hidden = CLUB_DROP.has(c.clubKey) || this.count(c, c, known) < CLUB_MIN;
+    }
+    this.allCats = this.cats;
+    this.cats = this.cats.filter((c) => !c.hidden);
+    this.catByKey = new Map(this.cats.map((c) => [c.key, c]));
     this.buildSearch();
   }
 
@@ -173,6 +210,7 @@ export class FootballDB {
       case 'mgr': return p.mgrs.includes(cat.idx);
       case 'mate': return p.mates.includes(cat.idx);
       case 'wild': return cat.test ? cat.test(p) : p.wild.includes(cat.idx);
+      case 'ht': return cat.test(p);
       default: return false;
     }
   }
@@ -222,8 +260,20 @@ export class FootballDB {
     return p.nats.map((i) => this.byType.nat[i]?.name).filter(Boolean);
   }
 
+  /** İpucu için baş harfler: adın ilk ve son kelimesi ("Arda Güler" → "A. G.", "Ronaldo" → "R.").
+      Kaç harf olduğu bilerek yazılmaz. */
+  initials(p) {
+    const w = String(p.name).split(/[\s.]+/).filter(Boolean);
+    if (!w.length) return '';
+    const first = [...w[0]][0];
+    const last = w.length > 1 ? [...w.at(-1)][0] : null;
+    return [first, last].filter(Boolean).map((c) => c.toLocaleUpperCase('tr') + '.').join(' ');
+  }
+
   /** Yanlış cevapta hangi şartın tutmadığını anlatan cümle parçası. */
-  failText(cat) {
+  failText(cat, p = null) {
+    // Boy çok net bir şart ama Wikidata'da tanınmışların %8'inde yok — yanlış şey söylemeyelim
+    if (cat.type === 'ht' && p && !p.ht) return 'boyu verimizde yok';
     if (cat.fail) return cat.fail;
     switch (cat.type) {
       case 'club': return `${cat.loc} oynamadı`;
@@ -248,12 +298,48 @@ export class FootballDB {
     }
   }
 
+  /** Ayarlar ekranı için başlık türü künyesi: tür başına kaç başlık var ve tanınmış örnekler. */
+  /** Kriter listesi (ayarlarda tek tek açıp kapatmak için): tür → [{ k: anahtar, n: ad, c: tanınmış cevap }]. */
+  catList() {
+    const known = this.knownLimit(15);
+    const out = {};
+    for (const c of this.cats) {
+      (out[c.type] ||= []).push({ k: c.key, n: this.catLabel(c), c: this.count(c, c, known), u: c.tier === 'u' || undefined });
+    }
+    for (const list of Object.values(out)) list.sort((a, b) => b.c - a.c);
+    return out;
+  }
+
+  /** Listelerde görünen tek satırlık ad. */
+  catLabel(c) {
+    return c.type === 'wild' ? this.headOf(c).filter(Boolean).join(' ') : c.type === 'cup' ? this.headOf(c)[0] : c.name;
+  }
+
+  catSummary() {
+    const out = {};
+    // Özel şartta anlamı fiil taşıyor ("ŞL finalinde gol attı"), kupada ad yeter
+    const label = (c) => this.catLabel(c);
+    for (const c of this.cats) {
+      const o = (out[c.type] ||= { n: 0, sample: [], rest: [] });
+      o.n++;
+      if (c.tier === 'k') {
+        if (o.sample.length < 3) o.sample.push(label(c));
+      } else if (o.rest.length < 3) o.rest.push(label(c));
+    }
+    for (const o of Object.values(out)) {
+      while (o.sample.length < 3 && o.rest.length) o.sample.push(o.rest.shift()); // Mevki gibi yalnız Uzman'da olanlar
+      delete o.rest;
+    }
+    return out;
+  }
+
   /** İstemciye giden başlık bilgisi. */
   publicCat(cat) {
     const desc =
       cat.desc ||
       (cat.type === 'club' || cat.type === 'lg' ? `${cat.loc} oynamış` : cat.type === 'nat' ? `${cat.name} uyruklu` : `Mevki: ${cat.name}`);
     const o = { key: cat.key, type: cat.type, name: cat.name, desc, head: this.headOf(cat) };
+    if (cat.type === 'ht') Object.assign(o, { cm: cat.cm, over: cat.over });
     if (cat.short) o.short = cat.short;
     if (cat.colors) o.colors = cat.colors;
     if (cat.flag) o.flag = cat.flag;
@@ -272,6 +358,7 @@ export class FootballDB {
       name: p.name,
       by: p.by,
       qid: p.qid,
+      ht: p.ht || null,
       nats: p.nats.map((i) => T.nat[i]).filter(Boolean).map((c) => ({ name: c.name, flag: c.flag })),
       pos: (T.pos || []).filter((c) => c && this.matches(p, c)).map((c) => c.name),
       clubs: years
@@ -304,7 +391,16 @@ export class FootballDB {
     }
   }
 
-  /** Otomatik tamamlama: her sorgu kelimesi ismin bir kelimesinin başı olmalı.
+  /** Eşleşme kalitesi: 0 = adın tamamı ("kaka"), 1 = adın tam kelimesi ("sanchez" → Alexis Sánchez) ya da
+      takma adın tamamı, 2 = kelime başı ("silva" → Silvan). Aynı kademede daha tanınmış olan üste çıkar. */
+  static matchTier(qt, qFull, va) {
+    if (va.full === qFull) return va.alias ? 1 : 0;
+    if (va.alias) return 2;
+    return qt.every((t) => va.toks.includes(t)) ? 1 : 2;
+  }
+
+  /** Otomatik tamamlama: her sorgu kelimesi ismin bir kelimesinin başı olmalı. Benzer isimlerde sıralama
+      tanınmışlığa göredir (ilk kademede "Ronaldo", sonra Cristiano Ronaldo, en sonda adaşları).
       Aynı adlı futbolcular için ayırt edici olarak uyruk bayrağı gider (doğum yılı değil). */
   search(q, limit = 8) {
     const qt = tokens(String(q).slice(0, 48));
@@ -320,9 +416,8 @@ export class FootballDB {
       if (seen.has(va.i)) continue;
       if (!qt.every((t) => va.toks.some((x) => x.startsWith(t)))) continue;
       seen.add(va.i);
-      const rank = va.full === qFull ? 0 : va.full.startsWith(qFull) ? 1 : 2;
-      hits.push({ va, rank });
-      if (hits.length >= 80) break;
+      hits.push({ va, rank: FootballDB.matchTier(qt, qFull, va) });
+      if (hits.length >= 240) break;
     }
     hits.sort((a, b) => a.rank - b.rank || a.va.i - b.va.i);
     const out = hits.slice(0, limit).map(({ va }) => {
