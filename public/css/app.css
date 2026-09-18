@@ -278,7 +278,23 @@ button { cursor: pointer; }
   text-underline-offset: 3px;
 }
 .link.center { align-self: center; }
-.back { align-self: flex-start; background: none; border: 0; padding: 4px 0; font-weight: 800; color: var(--ink-2); }
+/* Geri: düz yazı değil, çerçeveli küçük düğme */
+.back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink-2);
+  font-weight: 800;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.back:hover { background: var(--card-2); border-color: rgba(255, 255, 255, 0.22); color: var(--ink); }
+.back:active { transform: translateY(1px); }
 .icon-btn {
   flex: none;
   width: 40px;
