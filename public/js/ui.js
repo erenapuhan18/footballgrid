@@ -392,13 +392,17 @@ export function playerCard(card) {
 }
 
 /** Logodaki 3×3 ızgara işareti. */
-export function gridGlyph(px = 40) {
+export function gridGlyph(px = 40, variant = '') {
   const fill = { 0: COLOR_HEX.blue, 4: COLOR_HEX.red, 8: COLOR_HEX.blue, 5: COLOR_HEX.yellow };
   const cells = [];
   for (let i = 0; i < 9; i++) {
     const x = (i % 3) * 13 + 1.5;
     const y = Math.floor(i / 3) * 13 + 1.5;
-    cells.push(s('rect', { x, y, width: 11, height: 11, rx: 2.4, fill: fill[i] || 'none', stroke: '#14203a', 'stroke-width': 1.8 }));
+    // 'live': hücreler sırayla yerine oturur (ana menüdeki logo) — animasyon CSS'te, gecikme burada
+    cells.push(s('rect', {
+      x, y, width: 11, height: 11, rx: 2.4, fill: fill[i] || 'none', stroke: 'currentColor', 'stroke-width': 1.8,
+      ...(variant === 'live' ? { style: `--i:${i}` } : {}),
+    }));
   }
-  return s('svg', { viewBox: '0 0 41 41', width: px, height: px, class: 'glyph', 'aria-hidden': 'true' }, ...cells);
+  return s('svg', { viewBox: '0 0 41 41', width: px, height: px, class: `glyph ${variant}`.trim(), 'aria-hidden': 'true' }, ...cells);
 }

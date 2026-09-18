@@ -69,6 +69,91 @@ button { cursor: pointer; }
 .cover { padding: 14px 2px 2px; }
 .slogan { margin: 10px 0 0; font-weight: 750; font-size: 19px; font-stretch: 88%; color: var(--ink-2); }
 
+/* ───────── ana menü: koyu kahraman paneli (krem sayfada tek koyu blok = ağırlık merkezi) */
+
+/* Uzun telefon ekranında altı boş bırakmamak için: künye alta yaslanır, aralar açılır */
+.home { gap: 14px; min-height: calc(100dvh - 90px); }
+.home .foot { margin-top: auto; padding-top: 6px; }
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 24px 20px 4px;
+  border: 2px solid var(--ink);
+  border-radius: 18px;
+  background: #101a30;
+  color: var(--paper);
+  box-shadow: var(--sh-lg);
+}
+.hero::before { /* üstte ince altın şerit */
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: linear-gradient(90deg, #b8860b, var(--yellow) 25%, #ffe9a8 50%, var(--yellow) 72%, #b8860b);
+}
+.hero::after { /* zeminde soluk ızgara dokusu, sağ üstten silinir */
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.22;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.7) 1.2px, transparent 1.2px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.7) 1.2px, transparent 1.2px);
+  background-size: 27px 27px;
+  -webkit-mask-image: radial-gradient(130% 95% at 88% -10%, #000 15%, transparent 72%);
+  mask-image: radial-gradient(130% 95% at 88% -10%, #000 15%, transparent 72%);
+}
+.hero > * { position: relative; }
+.hero-top { display: flex; align-items: center; gap: 15px; }
+.hero .glyph { flex: none; color: var(--paper); }
+.hero .wm {
+  display: flex;
+  flex-direction: column;
+  font-weight: 900;
+  font-stretch: 62%;
+  line-height: 0.8;
+  letter-spacing: 0.005em;
+  font-size: clamp(44px, 14.5vw, 62px);
+}
+.hero .wm span:last-child { color: var(--red); -webkit-text-stroke: 1.6px var(--paper); paint-order: stroke fill; }
+.hero-slogan { margin: 13px 0 0; font-weight: 700; font-size: 15px; letter-spacing: 0.01em; color: #b9c0d2; }
+.hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin-top: 16px;
+  padding: 12px 0 14px;
+  border-top: 1.5px solid rgba(255, 255, 255, 0.14);
+  min-height: 56px;
+}
+.hero-stats .st { display: flex; flex-direction: column; gap: 3px; line-height: 1; }
+.hero-stats .st b { font-size: 19px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.hero-stats .st small { font-size: 10.5px; font-weight: 750; letter-spacing: 0.12em; text-transform: uppercase; color: #8790a6; }
+.hero-stats .st-wait { align-self: center; font-size: 13px; color: #8790a6; }
+
+/* Logo hücreleri sırayla yerine oturur (çıkartma yapıştırır gibi) */
+.glyph.live rect { transform-box: fill-box; transform-origin: center; animation: slap 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.5) both; animation-delay: calc(var(--i) * 65ms + 150ms); }
+@keyframes slap { from { opacity: 0; transform: scale(0.35) rotate(-12deg); } }
+
+/* Üç adım: sessiz dursun, OYNA'yla yarışmasın */
+.howto { list-style: none; margin: 4px 0 0; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;
+  border: 2px dashed var(--line-soft); border-radius: var(--r); }
+.howto li { display: flex; align-items: center; gap: 12px; }
+.howto .n { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--ink); color: var(--paper); font-weight: 900; font-size: 13px; }
+.howto li > span:last-child { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.howto b { font-weight: 800; font-size: 14.5px; }
+.howto small { font-size: 12.5px; color: var(--ink-2); }
+
+.home .nick-card { box-shadow: var(--sh-lg); }
+.btn.play { gap: 12px; background: linear-gradient(180deg, #ea4a40, var(--accent) 55%, #d02f25); }
+/* Ok CSS'te: buton metni "OYNA" kalsın (ekran okuyucu ve testler okumasın) */
+.btn.play::after { content: '→'; font-size: 0.85em; line-height: 0; transition: transform 0.15s; }
+.btn.play:hover::after { transform: translateX(5px); }
+@media (prefers-reduced-motion: reduce) {
+  .glyph.live rect { animation: none; }
+}
+
 .title { margin: 2px 0 0; font-weight: 900; font-stretch: 68%; font-size: 42px; line-height: 0.95; letter-spacing: 0.01em; }
 .lead { margin: 0; font-size: 16px; color: var(--ink-2); }
 .label { font-weight: 800; font-size: 12.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); padding: 0; }

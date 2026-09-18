@@ -120,7 +120,9 @@ try {
   const A = await newPage('/');
   const home = await A.ev(`await wait('.home'); return { t: text(), ph: $('#nick').placeholder, w: innerWidth };`);
   check(home.w === 390, 'mobil görünüm 390px', String(home.w));
-  check(home.t.includes('Futbol Bilginle Meydan Oku.'), 'ana sayfa: slogan');
+  check(home.t.includes('Futbol bilginle meydan oku'), 'ana sayfa: slogan');
+  check(/31\.\d{3}futbolcu/i.test(home.t.replace(/\s+/g, '')), 'ana sayfa: künye şeridi doldu', (home.t.match(/[\d.]+ ?futbolcu/i) || [])[0] || home.t.slice(0, 60));
+  check(['Hücreyi seç', 'Futbolcuyu yaz', 'Üçle, kazan'].every((x) => home.t.includes(x)), 'ana sayfa: üç adım');
   check(home.ph === 'Örn. Eren', 'ana sayfa: placeholder "Örn. Eren"');
   check(['OYNA', 'ODAYA KATIL', 'ODA OLUŞTUR'].every((b) => home.t.includes(b)), 'ana sayfa: üç düğme');
   await noOverflow(A, 'ana sayfa');

@@ -96,6 +96,7 @@ net.on('welcome', (d) => {
   S.publicUrl = (d.publicUrl || location.origin).replace(/\/$/, '');
   S.db = d.db;
   S.welcomed = true;
+  if (current === 'home') view?.update?.(); // ana menüdeki künye şeridi veri gelmeden açılmış olabilir
   if (d.room) return setRoom(d.room);
   const wasIn = !!(S.room || S.queue);
   S.room = null;
@@ -599,20 +600,45 @@ function HomeScreen() {
     err.textContent = '';
     input.classList.remove('bad');
   });
+  // Künye şeridi: veritabanının büyüklüğü oyunun ağırlığını anlatır, sunucu bağlanınca dolar
+  const stats = h('div', { class: 'hero-stats' });
+  const fillStats = () => {
+    const c = S.db?.cats;
+    if (!S.db) return put(stats, h('span', { class: 'st-wait' }, 'yükleniyor…'));
+    const rows = [
+      [S.db.players.toLocaleString('tr-TR'), 'futbolcu'],
+      [c?.club?.n, 'kulüp'],
+      [c?.nat?.n, 'ülke'],
+      [c ? Object.entries(c).filter(([t]) => t !== 'club' && t !== 'nat').reduce((n, [, v]) => n + v.n, 0) : null, 'kriter'],
+    ].filter(([n]) => n);
+    put(stats, rows.map(([n, l]) => h('span', { class: 'st' }, h('b', {}, String(n)), h('small', {}, l))));
+  };
+  fillStats();
   const el = h(
     'section',
     { class: 'screen home' },
-    h('header', { class: 'cover' }, Logo(), h('p', { class: 'slogan' }, 'Futbol Bilginle Meydan Oku.')),
-    h('div', { class: 'card field' },
+    h('header', { class: 'hero' },
+      h('div', { class: 'hero-top' }, gridGlyph(58, 'live'), h('div', { class: 'wm' }, h('span', {}, 'FOOTBALL'), h('span', {}, 'GRID'))),
+      h('p', { class: 'hero-slogan' }, 'Futbol bilginle meydan oku'),
+      stats),
+    h('div', { class: 'card field nick-card' },
       h('label', { class: 'label', for: 'nick' }, 'TAKMA ADIN'), input, err,
       h('p', { class: 'hint' }, 'Hesap yok, şifre yok, e-posta yok. Sadece bir takma ad.')),
-    h('button', { class: 'btn primary big', on: { click: go('quick') } }, 'OYNA'),
+    h('button', { class: 'btn primary big play', on: { click: go('quick') } }, 'OYNA'),
     h('div', { class: 'row2' },
       h('button', { class: 'btn', on: { click: go('join') } }, 'ODAYA KATIL'),
       h('button', { class: 'btn', on: { click: go('create') } }, 'ODA OLUŞTUR')),
+    // Üç adım: oyunu bir bakışta anlatır, uzun ekranda alttaki boşluğu da doldurur
+    h('ol', { class: 'howto' },
+      ...[
+        ['Hücreyi seç', 'Satır ve sütun şartının kesiştiği kutu'],
+        ['Futbolcuyu yaz', 'İki şarta birden uyan bir isim'],
+        ['Üçle, kazan', 'Yan yana 3 hücre senin olsun'],
+      ].map(([t, d], i) => h('li', {}, h('span', { class: 'n' }, String(i + 1)), h('span', {}, h('b', {}, t), h('small', {}, d)))),
+    ),
     Footer(),
   );
-  return { el, focus: () => !input.value && fine() && input.focus() };
+  return { el, update: fillStats, focus: () => !input.value && fine() && input.focus() };
 }
 
 function QuickScreen() {
