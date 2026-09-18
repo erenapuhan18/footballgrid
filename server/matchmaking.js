@@ -7,7 +7,8 @@ import { validateNick } from './nickname.js';
 import { RoomError } from './rooms.js';
 
 export const BOT_OFFER_MS = 45_000;
-const OFFLINE_DROP_MS = 15_000;
+// Telefon uyuyunca / ağ değişinca bağlantı kopuyor; 15 sn çok kısaydı, oyuncu kuyruktan düşüyordu
+const OFFLINE_DROP_MS = 90_000;
 const SIZES = [2, 3, 4];
 
 export class Matchmaker {
@@ -21,11 +22,16 @@ export class Matchmaker {
   }
 
   counts() {
-    return Object.fromEntries(SIZES.map((s) => [s, this.queues[s].length]));
+    return Object.fromEntries(SIZES.map((s) => [s, this.online(s)]));
   }
 
   total() {
     return SIZES.reduce((n, s) => n + this.queues[s].length, 0);
+  }
+
+  /** Bağlantısı kopuk bekleyenler sayılmaz: ekranda "1 kişi bekliyor" yazıp kimse çıkmamasın. */
+  online(size) {
+    return this.queues[size].filter((e) => !e.offlineSince).length;
   }
 
   status(entry) {
@@ -34,8 +40,8 @@ export class Matchmaker {
       size: entry.size,
       nick: entry.nick,
       since: entry.since,
-      waiting: this.total(),
-      waitingSize: this.queues[entry.size].length,
+      waiting: SIZES.reduce((n, s) => n + this.online(s), 0),
+      waitingSize: this.online(entry.size),
       avgWaitSec: avg == null ? null : Math.max(1, Math.round(avg / 1000)),
       botsAt: entry.since + BOT_OFFER_MS,
     };

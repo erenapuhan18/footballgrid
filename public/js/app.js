@@ -42,6 +42,7 @@ const S = {
   publicUrl: location.origin,
   db: null,
   catList: null,
+  wantQueue: null, // "şu boyda rakip arıyorum" niyeti: bağlantı koparsa kuyruğa geri dönmek için
   welcomed: false,
   routeCode: codeFromPath(),
   records: {},
@@ -106,6 +107,13 @@ net.on('welcome', (d) => {
     return show('searching');
   }
   S.queue = null;
+  // Telefon uyuyup bağlantı kopmuş olabilir: sunucu kuyruğu unuttuysa sessizce geri gir
+  if (S.wantQueue && (wasIn || current === 'searching')) {
+    const size = S.wantQueue;
+    toast('Bağlantı kopmuştu, kuyruğa geri alındın.', 'info', 3000);
+    joinQueue(size, true);
+    return;
+  }
   if (wasIn && d.resumed === false) toast('Sunucu yeniden başladı; oda kapandı.', 'error', 4000);
   if (wasIn || current === 'boot' || current === 'lobby' || current === 'game' || current === 'searching') routeHome();
 });
@@ -190,6 +198,7 @@ function setRoom(room) {
     return;
   }
   S.queue = null;
+  S.wantQueue = null;
   S.routeCode = null;
   S.watching = !room.members.some((m) => m.pid === S.pid); // üye değilsem izleyiciyim
   setPath('/oda/' + room.code);
@@ -235,18 +244,20 @@ async function watchRoom(code, err) {
   }
 }
 
-async function joinQueue(size) {
+async function joinQueue(size, quiet = false) {
   try {
     const r = await net.request('queue/join', { size, nick: store.nick() });
     S.room = null;
     removeCountdown();
     if (r.queue) {
+      S.wantQueue = size; // bağlantı koparsa geri dönebilmek için niyeti sakla
       S.queue = r.queue;
       setPath('/');
       show('searching');
     }
   } catch (e) {
-    toast(e.message, 'error');
+    if (!quiet) toast(e.message, 'error');
+    S.wantQueue = null;
   }
 }
 
@@ -672,6 +683,7 @@ function SearchingScreen() {
   const waiting = h('b');
   const avg = h('b');
   const clock = h('b', {}, '00:00');
+  const hint = h('p', { class: 'hint center' });
   const botsBox = h('div', { class: 'bots-offer', hidden: true },
     h('p', { class: 'hint center' }, 'Henüz yeterli rakip çıkmadı. İstersen botlarla başla, rakip gelirse onlar da alınır.'),
     h('button', { class: 'btn primary', on: { click: withBots } }, 'BOTLARLA BAŞLA'));
@@ -681,16 +693,21 @@ function SearchingScreen() {
     sub,
     h('dl', { class: 'qstats card' },
       h('dt', {}, 'Sen'), h('dd', {}, you),
-      h('dt', {}, 'Bekleyen oyuncular'), h('dd', {}, waiting),
+      h('dt', {}, 'Bu boyda bekleyen'), h('dd', {}, waiting),
       h('dt', {}, 'Ortalama bekleme'), h('dd', {}, avg),
       h('dt', {}, 'Geçen süre'), h('dd', {}, clock)),
+    hint,
     botsBox,
     h('button', { class: 'btn', on: { click: cancel } }, 'İPTAL'));
   function update() {
     const s = q();
     sub.textContent = `${s.size || ''} kişilik maç aranıyor...`;
     you.textContent = s.nick || store.nick();
-    waiting.textContent = String(s.waiting ?? '—');
+    // Kendi kuyruğundaki kişi sayısı — toplam yanıltıyordu (arkadaşın başka boyu seçmiş olabilir)
+    waiting.textContent = s.waitingSize == null ? '—' : `${s.waitingSize} / ${s.size}`;
+    hint.textContent = s.waitingSize >= 2
+      ? 'Rakipler toplanıyor…'
+      : `Arkadaşının da **${s.size} kişilik** hızlı maç seçmesi gerekiyor — başka boy seçerse eşleşmezsiniz.`.replace(/\*\*/g, '');
     avg.textContent = s.avgWaitSec ? `${s.avgWaitSec} sn` : 'hesaplanıyor…';
   }
   function tick() {
@@ -707,6 +724,7 @@ function SearchingScreen() {
       /* yok say */
     }
     S.queue = null;
+    S.wantQueue = null;
     show('quick');
   }
   function withBots() {

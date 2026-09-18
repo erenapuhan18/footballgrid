@@ -315,7 +315,8 @@ try {
   await D.shot('13-quick.png');
   await D.ev(`$$('.size-card')[0].click(); await wait('.searching');`);
   const sr = await D.ev(`await wait(() => /\\d+/.test($('.qstats dd:nth-of-type(2)').textContent)); return text();`);
-  check(sr.includes('🔎 Rakip aranıyor...') && sr.includes('2 kişilik maç aranıyor...') && sr.includes('Bekleyen oyuncular') && sr.includes('Ortalama bekleme'), 'rakip aranıyor ekranı');
+  check(sr.includes('🔎 Rakip aranıyor...') && sr.includes('2 kişilik maç aranıyor...') && sr.includes('Bu boyda bekleyen') && sr.includes('Ortalama bekleme'), 'rakip aranıyor ekranı');
+  check(/1 \/ 2/.test(sr) && /2 kişilik.*hızlı maç seçmesi|Rakipler toplanıyor/.test(sr), 'rakip aranıyor: kendi kuyruğundaki sayı ve uyarı', (sr.match(/Bu boyda bekleyen\s*\S+/) || [])[0]);
   await D.shot('14-searching.png');
   const E = await newPage('/');
   await E.ev(`type($('#nick'), 'Mert'); btn('OYNA').click(); await wait('.sizes'); $$('.size-card')[0].click();`);
