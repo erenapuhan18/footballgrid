@@ -1,4 +1,4 @@
-/* FOOTBALLGRID — gece stadyumu: koyu zemin, neon yeşil vurgu, camsı paneller,
+﻿/* FOOTBALLGRID — gece stadyumu: koyu zemin, neon yeşil vurgu, camsı paneller,
    projektör parıltısı ve saha çizgileri. Doğru cevapta hücre yeşil ışıkla dolar. */
 
 :root {
@@ -597,6 +597,7 @@ button.ticket:active { transform: translate(4px, 4px); box-shadow: none; }
 .grid { display: grid; grid-template-columns: repeat(calc(var(--n) + 1), minmax(0, 1fr)); gap: 6px; }
 .grid.n3 { --n: 3; }
 .grid.n4 { --n: 4; gap: 5px; }
+.grid.n5 { --n: 5; gap: 4px; }
 .corner { display: grid; place-items: center; }
 /* Başlık ve hücre yazıları kutu genişliğine göre küçülür: --len = en uzun kelimenin harf sayısı. */
 .hcat { container-type: inline-size; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; padding: 4px 1px; text-align: center; }

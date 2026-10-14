@@ -1,4 +1,4 @@
-/* FOOTBALLGRID maç motoru.
+﻿/* FOOTBALLGRID maç motoru.
    Sırayla (turn): sıra gelen oyuncu bir hücre seçer ve satır + sütun şartına uyan bir futbolcu söyler;
      doğru → hücre onun rengine boyanır; yanlış / pas / süre dolması → sıra geçer.
    Aynı anda (race): sıra yok; herkes istediği hücreye cevap verir, ilk doğru bilen hücreyi kapar;
@@ -14,7 +14,7 @@ export const RACE_PENALTY_MS = 3000;
 
 /** win: 'line3' → yan yana 3 hücre kazanır (2 kişide her zaman), 'most' → en çok hücre. */
 export function gameShape(mode, n, win) {
-  const size = mode === 'hizli' || n === 2 ? 3 : 4;
+  const size = mode === 'hizli' || n === 2 ? 3 : n === 3 ? 4 : 5;
   const cells = size * size;
   const factor = mode === 'hizli' ? 0.9 : 1.6;
   return {

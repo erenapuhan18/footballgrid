@@ -1,4 +1,4 @@
-/* Oda yöneticisi: oda kodu, katılma kuralları, host devri, bağlantı kopması ve maç yaşam döngüsü.
+﻿/* Oda yöneticisi: oda kodu, katılma kuralları, host devri, bağlantı kopması ve maç yaşam döngüsü.
 
    Durumlar: lobby → countdown (3 sn) → playing → finished → (rövanş) countdown …
    Kapanış: odada hiç insan kalmayınca ya da uzun süre boşta kalınca. Kapanan kodlar
@@ -24,7 +24,7 @@ export const SETTINGS = {
 };
 /** Hızlı maç: sırayla, 3 kişide 3'leme, 4 kişide en çok hücre, ipucu açık, aynı futbolcu bir kez. */
 export const quickSettings = (size) => ({
-  capacity: size, mode: 'klasik', turnTime: 30, win: size === 4 ? 'most' : 'line3', style: 'turn', matchTime: 180, hints: true, reuse: false,
+  capacity: size, mode: 'klasik', turnTime: 30, win: 'line3', style: 'turn', matchTime: 180, hints: true, reuse: false,
   cats: [...CAT_TYPES],
   off: [],
 });
@@ -53,7 +53,7 @@ function normSettings(s = {}, db = null) {
     mode: SETTINGS.mode.includes(s.mode) ? s.mode : 'klasik',
     turnTime: num(s.turnTime, SETTINGS.turnTime, 30),
     // 2 kişide 3'leme ya da nadirlik puanı; 3 kişide varsayılan 3'leme, 4 kişide en çok hücre
-    win: capacity === 2 ? (s.win === 'points' ? 'points' : 'line3') : SETTINGS.win.includes(s.win) ? s.win : capacity === 3 ? 'line3' : 'most',
+    win: capacity === 2 ? (s.win === 'points' ? 'points' : 'line3') : SETTINGS.win.includes(s.win) ? s.win : 'line3',
     rounds: num(s.rounds, SETTINGS.rounds, 1),
     style: SETTINGS.style.includes(s.style) ? s.style : 'turn',
     matchTime: num(s.matchTime, SETTINGS.matchTime, 180),

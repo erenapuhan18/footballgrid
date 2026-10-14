@@ -1,4 +1,4 @@
-/* FOOTBALLGRID istemcisi — ekranlar ve akış.
+﻿/* FOOTBALLGRID istemcisi — ekranlar ve akış.
    Kimlik: sunucunun verdiği geçici playerId + jeton (localStorage). Hesap yok. */
 
 import { Net } from './net.js';
@@ -416,7 +416,7 @@ function SettingsForm(init = {}, { minCapacity = 2 } = {}) {
   const catSum = h('summary', { class: 'label' });
   const boxes = {};
   const update = () => {
-    const size = st.mode === 'hizli' || st.capacity === 2 ? 3 : 4;
+    const size = st.mode === 'hizli' || st.capacity === 2 ? 3 : st.capacity === 3 ? 4 : 5;
     const line = st.win === 'line3' || (st.capacity === 2 && st.win !== 'points');
     const tempo = st.style === 'race' ? `aynı anda, ${st.matchTime / 60} dk` : `sırayla, tur ${st.turnTime} sn`;
     const rule = st.win === 'points'
@@ -443,7 +443,7 @@ function SettingsForm(init = {}, { minCapacity = 2 } = {}) {
         h('label', { class: 'chip' },
           h('input', {
             type: 'radio', name: `${key}-${uid}`, value: String(v), disabled: !!disabled,
-            on: { change: () => { st[key] = v; if (key === 'capacity' && st.win !== 'points') st.win = v === 4 ? 'most' : 'line3'; update(); } },
+            on: { change: () => { st[key] = v; if (key === 'capacity' && st.win !== 'points') st.win = 'line3'; update(); } },
           }),
           h('span', { class: 'chip-body' }, h('b', {}, label), desc ? h('small', {}, desc) : null))))));
   /* Izgara kriterleri: her tür bir satır — solda aç/kapa kutusu, sağda SEÇ (türün içindeki başlıklar).
@@ -659,7 +659,7 @@ function QuickScreen() {
     return h('button', { class: 'size-card card', on: { click: () => joinQueue(n) } },
       h('span', { class: 'n' }, String(n)),
       h('span', { class: 'lbl' }, 'KİŞİLİK HIZLI MAÇ'),
-      h('span', { class: 'desc' }, n === 2 ? '3×3 ızgara · yan yana 3 hücre kazanır' : n === 3 ? "4×4 ızgara · 3'leme: yan yana 3 hücre kazanır" : '4×4 ızgara · en çok hücre kapan kazanır'),
+      h('span', { class: 'desc' }, n === 2 ? '3×3 ızgara · yan yana 3 hücre kazanır' : n === 3 ? "4×4 ızgara · 3'leme: yan yana 3 hücre kazanır" : "5×5 ızgara · 3'leme: yan yana 3 hücre kazanır"),
       badges[n]);
   };
   const refresh = () =>

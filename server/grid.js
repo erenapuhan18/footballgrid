@@ -1,4 +1,4 @@
-/* Izgara üretici. Başlıklar dengeli dağılır: kulüpler azınlıkta kalır, geri kalan yerler ülke / lig /
+﻿/* Izgara üretici. Başlıklar dengeli dağılır: kulüpler azınlıkta kalır, geri kalan yerler ülke / lig /
    kupa / menajer / takım arkadaşı / joker (Uzman'da mevki) arasından, her türden en fazla bir tane.
    Aynı tür içinde bütün başlıkların çıkma şansı eşittir (tanınmışlığa göre ağırlık yok); yalnızca son
    maçlarda çıkmış başlıklar geri plana atılır. Izgaraların trChance kadarında bir kulüp yuvası Süper Lig'e
@@ -164,7 +164,7 @@ export function makeGrid(db, mode, size, { rng = Math.random, avoid = new Set(),
       // Tür planı: 2×size başlığın yarısından azı kulüp, kalanı farklı türlerden birer tane.
       // Dengeli plan tutmazsa kademeli gevşe: önce kulüp sayısını artır, en sonda satırların hepsi kulüp olsun.
       const phase = attempt < budget * 0.4 ? 0 : attempt < budget * 0.8 ? 1 : 2;
-      const nClubs = phase === 2 ? size + (size === 3 ? 1 : 2) : phase === 1 ? size + (rng() < 0.5 ? 1 : 0) : size === 3 ? (rng() < 0.5 ? 3 : 2) : rng() < 0.5 ? 4 : 3;
+      const nClubs = phase === 2 ? size + (size === 3 ? 1 : 2) : phase === 1 ? size + (rng() < 0.5 ? 1 : 0) : size === 3 ? (rng() < 0.5 ? 3 : 2) : size === 4 ? (rng() < 0.5 ? 4 : 3) : (rng() < 0.5 ? 5 : 4);
       const slots = Array(nClubs).fill('club');
       const left = [...otherTypes];
       if (left.includes('nat') && rng() < M.natChance) {
